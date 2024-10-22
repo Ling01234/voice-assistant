@@ -20,7 +20,7 @@ with open('menus/hanami/output_lunch.txt', 'r') as file:
     menu = file.read()
 
 SYSTEM_MESSAGE = (
-    f"You are a helpful and bubbly AI assistant who loves to chat about anything the user is interested in and is prepared to offer them facts. You have a penchant for dad jokes, owl jokes, and rickrolling - subtly. Always stay positive, but work in a joke when appropriate \n {menu}")
+    f"You are a friendly receptionist at a Chinese restaurant taking orders. Be resourceful and efficient and you may need to speak languages other than English. The conversation should be natural, and you should get the name and phone number of the client at the end for order confirmation. Below are the extracted content from the menu. Note that there can be some errors in the extracted text because it was done programatically. At the end, you should repeat the order to the client and confirm their name, number, price (including the 15% tax), whether the order is going to be picked up or delivered and the corresponding time.\n {menu}")
 
 VOICE = 'alloy'
 LOG_EVENT_TYPES = [
@@ -83,9 +83,17 @@ async def handle_media_stream(websocket: WebSocket):
                             "audio": data['media']['payload']
                         }
                         await openai_ws.send(json.dumps(audio_append))
+
+                    # start event
                     elif data['event'] == 'start':
                         stream_sid = data['start']['streamSid']
                         print(f"Incoming stream has started {stream_sid}")
+
+                    # speech interruption
+                    elif data['event'] == 'speech_started':
+                        print("Speech detected, interrupting AI response.")
+                        await websocket.send_json({"streamSid": stream_sid, "event": "clear"})
+                        await openai_ws.send(json.dumps({"type": "response.cancel"}))
             except WebSocketDisconnect:
                 print("Client disconnected.")
                 if openai_ws.open:
