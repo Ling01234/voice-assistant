@@ -15,11 +15,13 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv(
     'OPENAI_API_KEY')  # requires OpenAI Realtime API Access
 
+# read menu
+with open('menus/hanami/output_lunch.txt', 'r') as file:
+    menu = file.read()
+
 SYSTEM_MESSAGE = (
-    "You are a helpful and bubbly AI assistant who loves to chat about "
-    "anything the user is interested in and is prepared to offer them facts. "
-    "You have a penchant for dad jokes, owl jokes, and rickrolling – subtly. "
-    "Always stay positive, but work in a joke when appropriate.")
+    f"You are a helpful and bubbly AI assistant who loves to chat about anything the user is interested in and is prepared to offer them facts. You have a penchant for dad jokes, owl jokes, and rickrolling - subtly. Always stay positive, but work in a joke when appropriate \n {menu}")
+
 VOICE = 'alloy'
 LOG_EVENT_TYPES = [
     'response.content.done', 'rate_limits.updated', 'response.done',
@@ -34,7 +36,7 @@ if not OPENAI_API_KEY:
 
 @app.api_route("/", methods=["GET", "POST"])
 async def index_page():
-    return "<h1>Server is up and running.Youtube: @the_ai_solopreneur </h1>"
+    return "<h1>Server is up and running. </h1>"
 
 
 @app.api_route("/incoming-call", methods=["GET", "POST"])
@@ -43,10 +45,10 @@ async def handle_incoming_call(request: Request):
     response = VoiceResponse()
     # <Say> punctuation to improve text-to-speech flow
     response.say(
-        "Please wait while we connect your call to the A. I. voice assistant, powered by Twilio and the Open-A.I. Realtime API"
+        "Hi, you have called Hanami Sushi. How can we help?"
     )
-    response.pause(length=1)
-    response.say("O.K. you can start talking!")
+    # response.pause(length=1)
+    # response.say("O.K. you can start talking!")
     host = request.url.hostname
     connect = Connect()
     connect.stream(url=f'wss://{host}/media-stream')
@@ -137,6 +139,9 @@ async def send_session_update(openai_ws):
             "instructions": SYSTEM_MESSAGE,
             "modalities": ["text", "audio"],
             "temperature": 0.8,
+            # "input_audio_transcription": {
+            #             "model": "whisper-1",
+            #         },
         }
     }
     print('Sending session update:', json.dumps(session_update))
