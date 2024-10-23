@@ -9,6 +9,7 @@ from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
 from dotenv import load_dotenv
 import uvicorn
+import requests
 
 load_dotenv()
 
@@ -47,7 +48,8 @@ async def index_page():
 @app.api_route("/incoming-call", methods=["GET", "POST"])
 async def handle_incoming_call(request: Request):
     response = VoiceResponse()
-    response.say("Hi, you have called Hanami Sushi. How can we help?")
+    response.say("Hi")
+    # response.say("Hi, you have called Hanami Sushi. How can we help?")
     host = request.url.hostname
     connect = Connect()
     connect.stream(url=f'wss://{host}/media-stream')
@@ -68,9 +70,10 @@ async def handle_media_stream(websocket: WebSocket):
     ) as openai_ws:
         await send_session_update(openai_ws)
         stream_sid = None
+        transcript = ""
 
         async def receive_from_twilio():
-            nonlocal stream_sid
+            nonlocal stream_sid, transcript
             try:
                 async for message in websocket.iter_text():
                     data = json.loads(message)
@@ -81,22 +84,49 @@ async def handle_media_stream(websocket: WebSocket):
                             "audio": data['media']['payload']
                         }
                         await openai_ws.send(json.dumps(audio_append))
+
                     elif data['event'] == 'start':
                         stream_sid = data['start']['streamSid']
                         print(f"Incoming stream has started {stream_sid}")
+
+                    elif data['event'] == 'stop':
+                        # Extract summary after call ends
+                        print("Call ended. Extracting customer details...")
+                        await make_chatgpt_completion(transcript)
+
             except WebSocketDisconnect:
                 print("Client disconnected.")
                 if openai_ws.open:
                     await openai_ws.close()
 
         async def send_to_twilio():
-            nonlocal stream_sid
+            nonlocal stream_sid, transcript
             try:
                 async for openai_message in openai_ws:
                     response = json.loads(openai_message)
 
                     if response['type'] in LOG_EVENT_TYPES:
                         print(f"Received event: {response['type']}", response)
+
+                    if response['type'] == 'conversation.item.input_audio_transcription.completed':
+                        user_message = response.get('transcript', '').strip()
+                        transcript += f"User: {user_message}\n"
+                        print(f"User: {user_message}")
+
+                    if response['type'] == 'response.done':
+                        outputs = response.get('response', {}).get('output', [{}])
+
+                        if outputs:
+                            agent_message = outputs[0].get('content', [{}])[0].get('transcript', '').strip()
+                            
+                        else:
+                            agent_message = 'Agent message not found'
+                            
+                        transcript += f"Agent: {agent_message}\n"
+                        print(f"Agent: {agent_message}")
+
+                    if response['type'] == 'session.updated':
+                        print(f'Session updated successfully: {response}')
 
                     # Handle 'speech_started' event
                     if response['type'] == 'input_audio_buffer.speech_started':
@@ -146,10 +176,54 @@ async def send_session_update(openai_ws):
             "instructions": SYSTEM_MESSAGE,
             "modalities": ["text", "audio"],
             "temperature": 0.8,
+            "input_audio_transcription": {
+            "model": "whisper-1"
+        }
         }
     }
     print('Sending session update:', json.dumps(session_update))
     await openai_ws.send(json.dumps(session_update))
+
+
+async def make_chatgpt_completion(transcript):
+    """Call the OpenAI API to extract customer details from the transcript."""
+    print("Starting Transcript Summary...")
+    url = "https://api.openai.com/v1/chat/completions"
+    
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": "gpt-3.5-turbo",
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "Extract customer details: name, phone number, pickup or "
+                    "delivery time, and any special notes from the transcript."
+                )
+            },
+            {"role": "user", "content": transcript}
+        ]
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        print(f"ChatGPT API response status: {response.status_code}")
+
+        if response.status_code == 200:
+            data = response.json()
+            print("Full ChatGPT API response:", json.dumps(data, indent=2))
+            return data
+        else:
+            print(f"Error: {response.status_code} - {response.text}")
+            response.raise_for_status()
+
+    except Exception as e:
+        print(f"Error making ChatGPT completion call: {e}")
+        raise
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0")
