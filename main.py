@@ -20,13 +20,19 @@ with open('menus/hanami/output_lunch.txt', 'r') as file:
     menu = file.read()
 
 SYSTEM_MESSAGE = (
-    f"You are a friendly receptionist at a Chinese restaurant taking orders. Be resourceful and efficient and you may need to speak languages other than English. The conversation should be natural, and you should get the name and phone number of the client at the end for order confirmation. Below are the extracted content from the menu. Note that there can be some errors in the extracted text because it was done programatically. At the end, you should repeat the order to the client and confirm their name, number, price (including the 15% tax), whether the order is going to be picked up or delivered and the corresponding time.\n {menu}")
+    f"You are a friendly receptionist at a restaurant taking orders. Below are the extracted content from the menu. At the end, you should repeat the order to the client and confirm their name, number, price (including the 15% tax), whether the order is going to be picked up or delivered and the corresponding time.\n {menu}")
 
 VOICE = 'alloy'
 LOG_EVENT_TYPES = [
-    'response.content.done', 'rate_limits.updated', 'response.done',
-    'input_audio_buffer.committed', 'input_audio_buffer.speech_stopped',
-    'input_audio_buffer.speech_started', 'session.created'
+    "response.content.done",
+    "rate_limits.updated",
+    "response.done",
+    "input_audio_buffer.committed",
+    "input_audio_buffer.speech_stopped",
+    "input_audio_buffer.speech_started",
+    "session.created",
+    "response.text.done",
+    "conversation.item.input_audio_transcription.completed",
 ]
 
 app = FastAPI()
