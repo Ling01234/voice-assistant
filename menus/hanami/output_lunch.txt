@@ -1,7 +1,5 @@
-Y .
-Zz sushi kwok SPECIAL DU MIDI
-C ah 5 LUNCH SPECIAL MENU
-f ANAMI Ih30 . 15h00
+LUNCH SPECIAL MENU
+HANAMI Ih30 . 15h00
 Tous nos spciaux sont servis avec soupe rouleau printemps riz et legumes
 All our specials are served with soup spring roll rice and vegetables
 Poulet Chicken
