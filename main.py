@@ -1,4 +1,5 @@
 import os
+import aiohttp
 import json
 import base64
 import asyncio
@@ -15,6 +16,7 @@ load_dotenv()
 
 # Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
 
 # Read the menu
 with open('menus/hanami/output_lunch.txt', 'r') as file:
@@ -92,7 +94,7 @@ async def handle_media_stream(websocket: WebSocket):
                     elif data['event'] == 'stop':
                         # Extract summary after call ends
                         print("Call ended. Extracting customer details...")
-                        await make_chatgpt_completion(transcript)
+                        await process_transcript_and_send(transcript)
 
             except WebSocketDisconnect:
                 print("Client disconnected.")
@@ -184,46 +186,119 @@ async def send_session_update(openai_ws):
     print('Sending session update:', json.dumps(session_update))
     await openai_ws.send(json.dumps(session_update))
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 async def make_chatgpt_completion(transcript):
-    """Call the OpenAI API to extract customer details from the transcript."""
-    print("Starting Transcript Summary...")
+    """Make a ChatGPT API call and enforce schema using JSON."""
+    print("Starting ChatGPT API call...")
+
     url = "https://api.openai.com/v1/chat/completions"
-    
     headers = {
         "Authorization": f"Bearer {OPENAI_API_KEY}",
         "Content-Type": "application/json"
     }
 
+    # Request payload with enforced JSON schema
     payload = {
-        "model": "gpt-3.5-turbo",
+        "model": "gpt-4o-2024-08-06",
         "messages": [
             {
                 "role": "system",
                 "content": (
-                    "Extract customer details: name, phone number, pickup or "
-                    "delivery time, and any special notes from the transcript."
+                    "Extract customer details: name, phone number, "
+                    "pickup or delivery time and any special notes from the transcript."
                 )
             },
             {"role": "user", "content": transcript}
-        ]
+        ],
+        "functions": [
+            {
+                "name": "customer_details_extraction",
+                "description": "Extracts customer details from the transcript.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "customerName": {"type": "string"},
+                        "customerPhoneNumber": {"type": "string"},
+                        "customerTime": {"type": "string"},
+                        "specialNotes": {"type": "string"}
+                    },
+                    "required": [
+                        "customerName",
+                        "customerPhoneNumber",
+                        "customerTime",
+                        "specialNotes"
+                    ]
+                }
+            }
+        ],
+        "function_call": {
+            "name": "customer_details_extraction"
+        }
     }
 
+    # Make the API call using aiohttp
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(url, headers=headers, json=payload) as response:
+                print(f"ChatGPT API response status: {response.status}")
+                data = await response.json()
+                print("Full ChatGPT API response:", json.dumps(data, indent=2))
+
+                # Return the extracted data
+                return json.loads(data["choices"][0]["message"]["function_call"]["arguments"])
+
+        except Exception as error:
+            print(f"Error making ChatGPT completion call: {error}")
+            raise
+
+
+
+async def send_to_webhook(payload):
+    """Send data to Make.com webhook."""
+    print("Sending data to webhook:", json.dumps(payload, indent=2))
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            # Send a POST request to the webhook URL
+            async with session.post(
+                WEBHOOK_URL,
+                headers={"Content-Type": "application/json"},
+                json=payload
+            ) as response:
+
+                print(f"Webhook response status: {response.status}")
+                if response.status == 200:
+                    print("Data successfully sent to webhook.")
+                else:
+                    print(f"Failed to send data to webhook: {response.reason}")
+
+        except Exception as error:
+            print(f"Error sending data to webhook: {error}")
+
+async def process_transcript_and_send(transcript):
+    """Process the transcript and send the extracted data to the webhook."""
+
     try:
-        response = requests.post(url, headers=headers, json=payload)
-        print(f"ChatGPT API response status: {response.status_code}")
+        # Make the ChatGPT completion call
+        result = await make_chatgpt_completion(transcript)
 
-        if response.status_code == 200:
-            data = response.json()
-            print("Full ChatGPT API response:", json.dumps(data, indent=2))
-            return data
+        print("Raw result from ChatGPT:", json.dumps(result, indent=2))
+
+        # Check if the response contains the expected data
+        if result:
+            try:
+                # Send the parsed content to the webhook
+                await send_to_webhook(result)
+                print("Extracted and sent customer details:", result)
+
+            except json.JSONDecodeError as parse_error:
+                print(f"Error parsing JSON from ChatGPT response: {parse_error}")
         else:
-            print(f"Error: {response.status_code} - {response.text}")
-            response.raise_for_status()
+            print("Unexpected response structure from ChatGPT API")
+    except Exception as error:
+        print(f"Error in process_transcript_and_send: {error}")
 
-    except Exception as e:
-        print(f"Error making ChatGPT completion call: {e}")
-        raise
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0")
