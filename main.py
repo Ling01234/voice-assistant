@@ -186,8 +186,6 @@ async def send_session_update(openai_ws):
     print('Sending session update:', json.dumps(session_update))
     await openai_ws.send(json.dumps(session_update))
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 async def make_chatgpt_completion(transcript):
     """Make a ChatGPT API call and enforce schema using JSON."""
     print("Starting ChatGPT API call...")
@@ -283,7 +281,7 @@ async def process_transcript_and_send(transcript):
         # Make the ChatGPT completion call
         result = await make_chatgpt_completion(transcript)
 
-        print("Raw result from ChatGPT:", json.dumps(result, indent=2))
+        print("Processed result from ChatGPT:", json.dumps(result, indent=2))
 
         # Check if the response contains the expected data
         if result:
