@@ -1,4 +1,6 @@
 import os
+import uuid
+import datetime
 import aiohttp
 import json
 import base64
@@ -11,6 +13,7 @@ from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
 from dotenv import load_dotenv
 import uvicorn
 import requests
+import reportlab
 
 load_dotenv()
 
@@ -186,9 +189,15 @@ async def send_session_update(openai_ws):
     print('Sending session update:', json.dumps(session_update))
     await openai_ws.send(json.dumps(session_update))
 
+
 async def make_chatgpt_completion(transcript):
     """Make a ChatGPT API call and enforce schema using JSON."""
     print("Starting ChatGPT API call...")
+
+    # Generate unique call ID
+    call_id = str(uuid.uuid4())
+    # Get current time as the time of the order
+    current_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
 
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
@@ -203,35 +212,66 @@ async def make_chatgpt_completion(transcript):
             {
                 "role": "system",
                 "content": (
-                    "Extract customer details: name, phone number, "
-                    "pickup or delivery time and any special notes from the transcript."
+                    "Extract the following details from the transcript: "
+                    "name, phone number, order type (pickup or delivery), "
+                    "pickup or delivery time, and the full transcript. "
+                    "Also, structure the order information in JSON format with items, subtotal, tax, and total."
                 )
             },
             {"role": "user", "content": transcript}
         ],
         "functions": [
             {
-                "name": "customer_details_extraction",
-                "description": "Extracts customer details from the transcript.",
+                "name": "customer_order_extraction",
+                "description": "Extracts customer order details from the transcript.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "customerName": {"type": "string"},
-                        "customerPhoneNumber": {"type": "string"},
-                        "customerTime": {"type": "string"},
-                        "specialNotes": {"type": "string"}
+                        "call_id": {"type": "string"},
+                        "name": {"type": "string"},
+                        "phone_number": {"type": "string"},
+                        "time_of_order": {"type": "string"},
+                        "pickup": {"type": "boolean"},
+                        "pickup_or_delivery_time": {"type": "string"},
+                        "full_transcription": {"type": "string"},
+                        "order_info": {
+                            "type": "object",
+                            "properties": {
+                                "order_id": {"type": "string"},
+                                "customer_name": {"type": "string"},
+                                "timestamp": {"type": "string"},
+                                "items": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {"type": "string"},
+                                            "quantity": {"type": "integer"},
+                                            "unit_price": {"type": "number"}
+                                        },
+                                        "required": ["name", "quantity", "unit_price"]
+                                    }
+                                },
+                                "subtotal": {"type": "number"},
+                                "tax": {"type": "number"},
+                                "total": {"type": "number"}
+                            },
+                            "required": [
+                                "order_id", "customer_name", "timestamp",
+                                "items", "subtotal", "tax", "total"
+                            ]
+                        }
                     },
                     "required": [
-                        "customerName",
-                        "customerPhoneNumber",
-                        "customerTime",
-                        "specialNotes"
+                        "call_id", "name", "phone_number", "time_of_order",
+                        "pickup", "pickup_or_delivery_time", "full_transcription",
+                        "order_info"
                     ]
                 }
             }
         ],
         "function_call": {
-            "name": "customer_details_extraction"
+            "name": "customer_order_extraction"
         }
     }
 
@@ -243,12 +283,26 @@ async def make_chatgpt_completion(transcript):
                 data = await response.json()
                 print("Full ChatGPT API response:", json.dumps(data, indent=2))
 
-                # Return the extracted data
-                return json.loads(data["choices"][0]["message"]["function_call"]["arguments"])
+                # Parse the function call arguments
+                arguments = json.loads(data["choices"][0]["message"]["function_call"]["arguments"])
+
+                # Example: Enrich the response with generated values
+                arguments["call_id"] = call_id
+                arguments["time_of_order"] = current_time
+
+                # Add a formatted order_id to the order_info section
+                timestamp_seconds = int(datetime.now().timestamp())
+                arguments["order_info"]["order_id"] = f"ORD-{timestamp_seconds}-{call_id[-5:]}"
+
+                # Send the order info to AWS Lambda
+                await send_order_to_lambda(arguments["order_info"])
+
+                return arguments
 
         except Exception as error:
             print(f"Error making ChatGPT completion call: {error}")
             raise
+
 
 
 
@@ -297,6 +351,29 @@ async def process_transcript_and_send(transcript):
     except Exception as error:
         print(f"Error in process_transcript_and_send: {error}")
 
+
+async def send_order_to_lambda(order_info):
+    """Asynchronously send order information to AWS Lambda via webhook."""
+    lambda_url = os.getenv("AWS_LAMBDA_URL")  # Get the Lambda URL from environment variables
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            print("Sending order info to AWS Lambda...")
+            async with session.post(lambda_url, headers=headers, json=order_info) as response:
+                if response.status == 200:
+                    response_data = await response.json()
+                    print("Order successfully sent to AWS Lambda!")
+                    print("Lambda Response:", json.dumps(response_data, indent=2))
+                else:
+                    print(f"Failed to send order. Status Code: {response.status}")
+                    print("Response:", await response.text())
+
+        except aiohttp.ClientError as e:
+            print(f"Error sending order to Lambda: {e}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0")
