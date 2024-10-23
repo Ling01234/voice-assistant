@@ -200,7 +200,7 @@ async def make_chatgpt_completion(transcript):
 
     # Request payload with enforced JSON schema
     payload = {
-        "model": "gpt-4o-2024-08-06",
+        "model": "gpt-3.5-turbo",
         "messages": [
             {
                 "role": "system",
