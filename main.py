@@ -291,7 +291,7 @@ async def make_chatgpt_completion(transcript):
                 arguments["time_of_order"] = current_time
 
                 # Add a formatted order_id to the order_info section
-                timestamp_seconds = int(datetime.now().timestamp())
+                timestamp_seconds = int(datetime.datetime.now().timestamp())
                 arguments["order_info"]["order_id"] = f"ORD-{timestamp_seconds}-{call_id[-5:]}"
 
                 # Send the order info to AWS Lambda
