@@ -8,6 +8,10 @@ __pycache__/
 *.pdf
 *.DS_Store
 t.json
+lambda-layer/
+mqtt/
+libraries/packages/
+libraries/packages.zip
 
 
 

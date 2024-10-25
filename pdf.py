@@ -2,9 +2,13 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 import io
+from textwrap import wrap
 
 def generate_pdf_receipt(event):
     """Generates a professional receipt PDF formatted for an 80mm thermal printer."""
+    max_line_width = 25  # Adjust the number of characters that fit in one line
+    same_item_spacing = 4 * mm  # Adjust the spacing between wrapped lines
+    between_item_spacing = 8 * mm  # Adjust the spacing between items
 
     # Extract order info from the event
     customer_name = event.get("customer_name", "N/A")
@@ -18,15 +22,44 @@ def generate_pdf_receipt(event):
     # PDF page size for 80mm thermal printer
     receipt_width = 80 * mm  # 80mm width
 
-    # Height calculation with better spacing
+    # Calculate total height for the items section
+    item_section_height = 0  # Initialize total height for items
+
+    for item in items:
+        item_name = item["name"]
+        quantity = item["quantity"]
+
+        # Wrap item_name to fit within the receipt width
+        wrapped_lines = wrap(f"{item_name} x{quantity}", max_line_width)
+
+        # Add height for all lines of the current item
+        item_section_height += len(wrapped_lines) * same_item_spacing
+
+        # Check if notes exist to adjust item height
+        notes = item.get("notes", "")
+        if notes:
+            wrapped_notes = wrap(notes, max_line_width)
+            item_section_height += len(wrapped_notes) * same_item_spacing
+
+        # Add spacing between items (only after each full item is drawn)
+        item_section_height += between_item_spacing
+
+    # Remove extra spacing after the last item
+    item_section_height -= between_item_spacing  # Avoid adding spacing after the last item
+
+    # Calculate the final receipt height dynamically
     header_height = 40 * mm  # Space for title and order details
-    item_section_height = len(items) * 8 * mm  # Each item gets 12mm for spacing
     total_section_height = 40 * mm  # Subtotal, tax, and total section
     footer_height = 30 * mm  # Footer space for thank you message
     margin = 10 * mm  # Extra margin to avoid clipping
 
-    # Calculate the final receipt height dynamically
-    receipt_height = header_height + item_section_height + total_section_height + footer_height + margin
+    receipt_height = (
+        header_height 
+        + item_section_height 
+        + total_section_height 
+        + footer_height 
+        + margin
+    )
 
     # Create an in-memory PDF buffer
     buffer = io.BytesIO()
@@ -53,19 +86,48 @@ def generate_pdf_receipt(event):
 
     # Items section
     y -= 15 * mm
-    pdf.drawString(5 * mm, y, "Items:")
+    pdf.drawString(5 * mm, y, "Ordered Items:")
     y -= 12 * mm
 
     for item in items:
         item_name = item["name"]
         quantity = item["quantity"]
         unit_price = item["unit_price"]
-        line = f"{item_name} x{quantity}"
         price = f"${unit_price * quantity:.2f}"
-        
-        pdf.drawString(5 * mm, y, line)
-        pdf.drawRightString(receipt_width - 5 * mm, y, price)
-        y -= 8 * mm  # Adjust spacing for the next item
+        notes = item.get("notes", "")
+
+        # Wrap item_name to fit within the receipt width
+        wrapped_lines = wrap(f"{item_name} x{quantity}", max_line_width)
+
+        for line in wrapped_lines:
+            pdf.drawString(5 * mm, y, line)
+            y -= same_item_spacing  # Adjust spacing between wrapped lines
+
+        # Print price aligned to the right, only once per item
+        pdf.drawRightString(receipt_width - same_item_spacing, y + same_item_spacing, price)
+
+        # If notes exist, print them on the same line as "Notes:"
+        if notes:
+            pdf.setFont("Courier-Bold", 10)  # Bold for "Notes:"
+            notes_text = f"Notes: {notes}"  # Concatenate "Notes:" with the actual notes
+            
+            # Wrap the concatenated text to fit within the receipt width
+            wrapped_notes = wrap(notes_text, max_line_width)
+            
+            # Draw the first line of the wrapped notes
+            pdf.drawString(5 * mm, y, wrapped_notes[0])
+
+            # If there are more lines, print them below with appropriate spacing
+            for note_line in wrapped_notes[1:]:
+                y -= same_item_spacing  # Adjust spacing between lines of the note
+                pdf.drawString(5 * mm, y, note_line)
+
+            pdf.setFont("Courier", 10)  # Switch back to regular font for the content
+
+        y -= between_item_spacing  # Adjust spacing for the next item
+
+    # Update the last item's height
+    y += between_item_spacing
 
     # Totals section
     draw_separator(y - 5 * mm)
@@ -106,23 +168,13 @@ order_info = {
     "customer_name": "Jane Doe",
     "timestamp": "22-10-2024T08:06:03",
     "items": [
-        {"name": "General Tao Chicken", "quantity": 1, "unit_price": 18.00},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
-        {"name": "Wonton Soup", "quantity": 1, "unit_price": 4.99},
+        {"name": "General Tao Chicken", "quantity": 1, "unit_price": 18.00, "notes": "Extra spicy"},
+        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
+        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
+        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": "scipy"},
+        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
+        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
+        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
     ],
     "subtotal": 22.99,
     "tax": 3.45,

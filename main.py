@@ -115,7 +115,7 @@ async def handle_media_stream(websocket: WebSocket):
 
                     if response['type'] == 'conversation.item.input_audio_transcription.completed':
                         user_message = response.get('transcript', '').strip()
-                        transcript += f"User: {user_message}\n"
+                        transcript += f"User: {user_message}\n\n"
                         print(f"User: {user_message}")
 
                     if response['type'] == 'response.done':
@@ -127,7 +127,7 @@ async def handle_media_stream(websocket: WebSocket):
                         else:
                             agent_message = 'Agent message not found'
                             
-                        transcript += f"Agent: {agent_message}\n"
+                        transcript += f"Agent: {agent_message}\n\n"
                         print(f"Agent: {agent_message}")
 
                     if response['type'] == 'session.updated':
@@ -216,6 +216,7 @@ async def make_chatgpt_completion(transcript):
                     "name, phone number, order type (pickup or delivery), "
                     "pickup or delivery time, and the full transcript. "
                     "Also, structure the order information in JSON format with items, subtotal, tax, and total."
+                    "For each item, also extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty."
                 )
             },
             {"role": "user", "content": transcript}
@@ -247,9 +248,10 @@ async def make_chatgpt_completion(transcript):
                                         "properties": {
                                             "name": {"type": "string"},
                                             "quantity": {"type": "integer"},
-                                            "unit_price": {"type": "number"}
+                                            "unit_price": {"type": "number"},
+                                            "notes": {"type": "string"} 
                                         },
-                                        "required": ["name", "quantity", "unit_price"]
+                                        "required": ["name", "quantity", "unit_price", "notes"]
                                     }
                                 },
                                 "subtotal": {"type": "number"},
