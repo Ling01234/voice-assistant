@@ -199,7 +199,6 @@ async def make_chatgpt_completion(transcript, timer):
 
     # Generate unique call ID
     call_id = str(uuid.uuid4())
-    # Get current time as the time of the order
     current_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
 
     url = "https://api.openai.com/v1/chat/completions"
@@ -219,7 +218,8 @@ async def make_chatgpt_completion(transcript, timer):
                     "name, phone number, order type (pickup or delivery), "
                     "pickup or delivery time, and the full transcript. "
                     "Also, structure the order information in JSON format with items, subtotal, tax, and total."
-                    "For each item, also extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty."
+                    "For each item, also extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty. "
+                    "Additionally, determine if the order was confirmed and store this in a 'confirmation' key (as a boolean)."
                 )
             },
             {"role": "user", "content": transcript}
@@ -238,7 +238,8 @@ async def make_chatgpt_completion(transcript, timer):
                         "pickup": {"type": "boolean"},
                         "pickup_or_delivery_time": {"type": "string"},
                         "full_transcription": {"type": "string"},
-                        "timer": {"type": "number"}, 
+                        "confirmation": {"type": "boolean"},  # Added confirmation key
+                        "timer": {"type": "number"},
                         "order_info": {
                             "type": "object",
                             "properties": {
@@ -271,7 +272,7 @@ async def make_chatgpt_completion(transcript, timer):
                     "required": [
                         "call_id", "name", "phone_number", "time_of_order",
                         "pickup", "pickup_or_delivery_time", "full_transcription",
-                        "timer", "order_info" 
+                        "confirmation", "timer", "order_info"
                     ]
                 }
             }
@@ -281,7 +282,6 @@ async def make_chatgpt_completion(transcript, timer):
         }
     }
 
-    # Make the API call using aiohttp
     async with aiohttp.ClientSession() as session:
         try:
             async with session.post(url, headers=headers, json=payload) as response:
@@ -292,25 +292,20 @@ async def make_chatgpt_completion(transcript, timer):
                 # Parse the function call arguments
                 arguments = json.loads(data["choices"][0]["message"]["function_call"]["arguments"])
 
-                # Example: Enrich the response with generated values
+                # Enrich the response with generated values
                 arguments["call_id"] = call_id
                 arguments["time_of_order"] = current_time
                 arguments["timer"] = timer
 
-                # Add a formatted order_id to the order_info section
+                # Add formatted order_id to order_info
                 timestamp_seconds = int(datetime.datetime.now().timestamp())
                 arguments["order_info"]["order_id"] = f"ORD-{timestamp_seconds}-{call_id[-5:]}"
-
-                # Send the order info to AWS Lambda
-                await send_order_to_lambda(arguments["order_info"])
 
                 return arguments
 
         except Exception as error:
             print(f"Error making ChatGPT completion call: {error}")
             raise
-
-
 
 
 async def send_to_webhook(payload):
@@ -337,7 +332,6 @@ async def send_to_webhook(payload):
 
 async def process_transcript_and_send(transcript, timer):
     """Process the transcript and send the extracted data to the webhook."""
-
     try:
         # Make the ChatGPT completion call
         result = await make_chatgpt_completion(transcript, timer)
@@ -346,7 +340,16 @@ async def process_transcript_and_send(transcript, timer):
 
         # Check if the response contains the expected data
         if result:
+            # Check if the order was confirmed
+            if not result.get("confirmation", False):
+                print("------------------------------------ Order not confirmed. No further action will be taken. ------------------------------------")
+                return  # Stop further processing
+
             try:
+                # Send the order info to AWS Lambda (restored code)
+                await send_order_to_lambda(result["order_info"])
+                print("Order information sent to Lambda.")
+
                 # Send the parsed content to the webhook
                 await send_to_webhook(result)
                 print("Extracted and sent customer details:", result)
@@ -355,6 +358,7 @@ async def process_transcript_and_send(transcript, timer):
                 print(f"Error parsing JSON from ChatGPT response: {parse_error}")
         else:
             print("Unexpected response structure from ChatGPT API")
+
     except Exception as error:
         print(f"Error in process_transcript_and_send: {error}")
 
