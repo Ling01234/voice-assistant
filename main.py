@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 import datetime
 import aiohttp
@@ -64,6 +65,7 @@ async def handle_incoming_call(request: Request):
 @app.websocket("/media-stream")
 async def handle_media_stream(websocket: WebSocket):
     print("Client connected")
+    start_timer = time.time()
     await websocket.accept()
 
     async with websockets.connect(
@@ -97,7 +99,8 @@ async def handle_media_stream(websocket: WebSocket):
                     elif data['event'] == 'stop':
                         # Extract summary after call ends
                         print("Call ended. Extracting customer details...")
-                        await process_transcript_and_send(transcript)
+                        end_timer = time.time()
+                        await process_transcript_and_send(transcript, end_timer - start_timer)
 
             except WebSocketDisconnect:
                 print("Client disconnected.")
@@ -190,7 +193,7 @@ async def send_session_update(openai_ws):
     await openai_ws.send(json.dumps(session_update))
 
 
-async def make_chatgpt_completion(transcript):
+async def make_chatgpt_completion(transcript, timer):
     """Make a ChatGPT API call and enforce schema using JSON."""
     print("Starting ChatGPT API call...")
 
@@ -235,6 +238,7 @@ async def make_chatgpt_completion(transcript):
                         "pickup": {"type": "boolean"},
                         "pickup_or_delivery_time": {"type": "string"},
                         "full_transcription": {"type": "string"},
+                        "timer": {"type": "number"}, 
                         "order_info": {
                             "type": "object",
                             "properties": {
@@ -267,7 +271,7 @@ async def make_chatgpt_completion(transcript):
                     "required": [
                         "call_id", "name", "phone_number", "time_of_order",
                         "pickup", "pickup_or_delivery_time", "full_transcription",
-                        "order_info"
+                        "timer", "order_info" 
                     ]
                 }
             }
@@ -291,6 +295,7 @@ async def make_chatgpt_completion(transcript):
                 # Example: Enrich the response with generated values
                 arguments["call_id"] = call_id
                 arguments["time_of_order"] = current_time
+                arguments["timer"] = timer
 
                 # Add a formatted order_id to the order_info section
                 timestamp_seconds = int(datetime.datetime.now().timestamp())
@@ -330,12 +335,12 @@ async def send_to_webhook(payload):
         except Exception as error:
             print(f"Error sending data to webhook: {error}")
 
-async def process_transcript_and_send(transcript):
+async def process_transcript_and_send(transcript, timer):
     """Process the transcript and send the extracted data to the webhook."""
 
     try:
         # Make the ChatGPT completion call
-        result = await make_chatgpt_completion(transcript)
+        result = await make_chatgpt_completion(transcript, timer)
 
         print("Processed result from ChatGPT:", json.dumps(result, indent=2))
 
