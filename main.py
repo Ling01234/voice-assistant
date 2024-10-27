@@ -360,7 +360,7 @@ async def process_transcript_and_send(transcript, timer):
                 # print("Order information sent to Lambda.")
 
                 # Send the parsed content to the webhook
-                await send_to_webhook(result)
+                # await send_to_webhook(result)
                 # print("Extracted and sent customer details:", result)
 
             except json.JSONDecodeError as parse_error:
