@@ -157,10 +157,10 @@ def generate_pdf_receipt(event):
     buffer.seek(0)
 
     # Save the buffer content to a local PDF file for testing
-    with open("thermal_printer_receipt.pdf", "wb") as f:
+    with open("receipt.pdf", "wb") as f:
         f.write(buffer.read())
 
-    print("PDF receipt generated: thermal_printer_receipt.pdf")
+    print("PDF receipt generated: receipt.pdf")
 
 # Example usage with sample order info
 order_info = {

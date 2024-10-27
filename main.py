@@ -27,7 +27,7 @@ with open('menus/hanami/output_lunch.txt', 'r') as file:
     menu = file.read()
 
 SYSTEM_MESSAGE = (
-    f"You are a friendly receptionist at a restaurant taking orders. Below are the extracted content from the menu. At the end, you should repeat the order to the client and confirm their name, number, price (including the 15% tax), whether the order is going to be picked up or delivered and the corresponding time.\n {menu}")
+    f"You are a friendly receptionist at a restaurant taking orders. Below are the extracted content from the menu. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time.\n {menu}")
 
 VOICE = 'alloy'
 LOG_EVENT_TYPES = [
@@ -104,6 +104,14 @@ async def handle_media_stream(websocket: WebSocket):
 
             except WebSocketDisconnect:
                 print("Client disconnected.")
+                if openai_ws.open:
+                    await openai_ws.close()
+
+            except Exception as e:
+                print(f"Error in receive_from_twilio: {e}")
+
+            finally:
+                # Ensure OpenAI WebSocket is closed if still open
                 if openai_ws.open:
                     await openai_ws.close()
 
@@ -217,7 +225,7 @@ async def make_chatgpt_completion(transcript, timer):
                     "Extract the following details from the transcript: "
                     "name, phone number, order type (pickup or delivery), "
                     "pickup or delivery time, and the full transcript. "
-                    "Also, structure the order information in JSON format with items, subtotal, tax, and total."
+                    "Also, structure the order information in JSON format with items and subtotal."
                     "For each item, also extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty. "
                     "Additionally, determine if the order was confirmed and store this in a 'confirmation' key (as a boolean)."
                 )
@@ -260,12 +268,12 @@ async def make_chatgpt_completion(transcript, timer):
                                     }
                                 },
                                 "subtotal": {"type": "number"},
-                                "tax": {"type": "number"},
-                                "total": {"type": "number"}
+                                # "tax": {"type": "number"},
+                                # "total": {"type": "number"}
                             },
                             "required": [
                                 "order_id", "customer_name", "timestamp",
-                                "items", "subtotal", "tax", "total"
+                                "items", "subtotal" #, "tax", "total"
                             ]
                         }
                     },
@@ -296,6 +304,7 @@ async def make_chatgpt_completion(transcript, timer):
                 arguments["call_id"] = call_id
                 arguments["time_of_order"] = current_time
                 arguments["timer"] = timer
+                arguments['order_info']['timestamp'] = current_time
 
                 # Add formatted order_id to order_info
                 timestamp_seconds = int(datetime.datetime.now().timestamp())
@@ -348,23 +357,26 @@ async def process_transcript_and_send(transcript, timer):
             try:
                 # Send the order info to AWS Lambda (restored code)
                 await send_order_to_lambda(result["order_info"])
-                print("Order information sent to Lambda.")
+                # print("Order information sent to Lambda.")
 
                 # Send the parsed content to the webhook
                 await send_to_webhook(result)
-                print("Extracted and sent customer details:", result)
+                # print("Extracted and sent customer details:", result)
 
             except json.JSONDecodeError as parse_error:
                 print(f"Error parsing JSON from ChatGPT response: {parse_error}")
         else:
             print("Unexpected response structure from ChatGPT API")
 
+    except asyncio.TimeoutError: #timeout error
+        print("Timed out while processing the transcript.")
+
     except Exception as error:
         print(f"Error in process_transcript_and_send: {error}")
 
 
 async def send_order_to_lambda(order_info):
-    """Asynchronously send order information to AWS Lambda via webhook."""
+    """Asynchronously send order information to AWS Lambda via webhook and handle PDF response."""
     lambda_url = os.getenv("AWS_LAMBDA_URL")  # Get the Lambda URL from environment variables
 
     headers = {
@@ -375,16 +387,31 @@ async def send_order_to_lambda(order_info):
         try:
             print("Sending order info to AWS Lambda...")
             async with session.post(lambda_url, headers=headers, json=order_info) as response:
+                
+                # If the response is successful (status code 200)
                 if response.status == 200:
-                    response_data = await response.json()
-                    print("Order successfully sent to AWS Lambda!")
-                    print("Lambda Response:", json.dumps(response_data, indent=2))
+                    content_type = response.headers.get("Content-Type")
+                    
+                    # If the response is a PDF (application/pdf)
+                    if content_type == "application/pdf":
+                        # Read the PDF content as bytes
+                        pdf_content = await response.read()
+
+                        # Save the PDF to a local file
+                        with open("receipt.pdf", "wb") as pdf_file:
+                            pdf_file.write(pdf_content)
+
+                        print("PDF receipt successfully received and saved as 'receipt.pdf'.")
+                    else:
+                        print(f"Unexpected content type: {content_type}")
+                
                 else:
                     print(f"Failed to send order. Status Code: {response.status}")
                     print("Response:", await response.text())
 
         except aiohttp.ClientError as e:
             print(f"Error sending order to Lambda: {e}")
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0")
