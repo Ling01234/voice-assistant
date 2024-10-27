@@ -133,12 +133,17 @@ def generate_pdf_receipt(event):
     # Totals section
     draw_separator(y - 5 * mm)
     y -= 12 * mm
-    pdf.drawString(5 * mm, y, f"Subtotal: ${subtotal:.2f}")
+    pdf.drawString(5 * mm, y, f"Subtotal:")
+    pdf.drawRightString(receipt_width - 5 * mm, y, f"${subtotal:.2f}")
+
     y -= 7 * mm
-    pdf.drawString(5 * mm, y, f"Tax: ${tax:.2f}")
+    pdf.drawString(5 * mm, y, f"Tax:")
+    pdf.drawRightString(receipt_width - 5 * mm, y, f"${tax:.2f}")
+
     y -= 7 * mm
+    pdf.drawString(5 * mm, y, f"Total:")
     pdf.setFont("Courier-Bold", 12)
-    pdf.drawString(5 * mm, y, f"Total: ${total:.2f}")
+    pdf.drawRightString(receipt_width - 5 * mm, y, f"${total:.2f}")
 
     # Footer section
     pdf.setFont("Courier", 8)
