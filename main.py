@@ -63,7 +63,7 @@ async def handle_incoming_call(request: Request):
     return HTMLResponse(content=str(response), media_type="application/xml")
 
 @app.websocket("/media-stream")
-async def handle_media_stream(websocket: WebSocket):
+async def handle_media_stream(websocket: WebSocket, verbose = False):
     print("Client connected")
     start_timer = time.time()
     await websocket.accept()
@@ -121,7 +121,7 @@ async def handle_media_stream(websocket: WebSocket):
                 async for openai_message in openai_ws:
                     response = json.loads(openai_message)
 
-                    if response['type'] in LOG_EVENT_TYPES:
+                    if response['type'] in LOG_EVENT_TYPES and verbose:
                         print(f"Received event: {response['type']}", response)
 
                     if response['type'] == 'conversation.item.input_audio_transcription.completed':
@@ -141,12 +141,13 @@ async def handle_media_stream(websocket: WebSocket):
                         transcript += f"Agent: {agent_message}\n\n"
                         print(f"Agent: {agent_message}")
 
-                    if response['type'] == 'session.updated':
+                    if response['type'] == 'session.updated' and verbose:
                         print(f'Session updated successfully: {response}')
 
                     # Handle 'speech_started' event
                     if response['type'] == 'input_audio_buffer.speech_started':
-                        print("Speech Start:", response['type'])
+                        if verbose:
+                            print("Speech Start:", response['type'])
 
                         # Clear ongoing speech on Twilio side
                         clear_event = {
@@ -181,7 +182,7 @@ async def handle_media_stream(websocket: WebSocket):
 
         await asyncio.gather(receive_from_twilio(), send_to_twilio())
 
-async def send_session_update(openai_ws):
+async def send_session_update(openai_ws, verbose=False):
     session_update = {
         "type": "session.update",
         "session": {
@@ -197,7 +198,10 @@ async def send_session_update(openai_ws):
         }
         }
     }
-    print('Sending session update:', json.dumps(session_update))
+    
+    if verbose:
+        print('Sending session update:', json.dumps(session_update))
+
     await openai_ws.send(json.dumps(session_update))
 
 
