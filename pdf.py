@@ -49,9 +49,9 @@ def generate_pdf_receipt(event):
 
     # Calculate the final receipt height dynamically
     header_height = 40 * mm  # Space for title and order details
-    total_section_height = 40 * mm  # Subtotal, tax, and total section
+    total_section_height = 4 * between_item_spacing  # Subtotal, tax, and total section
     footer_height = 30 * mm  # Footer space for thank you message
-    margin = 10 * mm  # Extra margin to avoid clipping
+    margin = 15 * mm  # Extra margin to avoid clipping
 
     receipt_height = (
         header_height 
@@ -77,7 +77,7 @@ def generate_pdf_receipt(event):
         pdf.drawString(5 * mm, y, "-" * 40)  # Dashed separator line
 
     # Customer and order details
-    y = receipt_height - 25 * mm
+    y = receipt_height - 20 * mm
     pdf.drawString(5 * mm, y, f"Order ID: {order_id}")
     y -= 5 * mm
     pdf.drawString(5 * mm, y, f"Customer: {customer_name}")
@@ -87,7 +87,7 @@ def generate_pdf_receipt(event):
     # Items section
     y -= 15 * mm
     pdf.drawString(5 * mm, y, "Ordered Items:")
-    y -= 12 * mm
+    y -= between_item_spacing
 
     for item in items:
         item_name = item["name"]
@@ -124,22 +124,24 @@ def generate_pdf_receipt(event):
 
             pdf.setFont("Courier", 10)  # Switch back to regular font for the content
 
+            y += same_item_spacing
+            y -= between_item_spacing  # Adjust spacing for the next item
         y -= between_item_spacing  # Adjust spacing for the next item
 
     # Update the last item's height
     y += between_item_spacing
 
     # Totals section
-    draw_separator(y - 5 * mm)
-    y -= 12 * mm
+    draw_separator(y - between_item_spacing)
+    y -= 2 * between_item_spacing
     pdf.drawString(5 * mm, y, f"Subtotal:")
     pdf.drawRightString(receipt_width - 5 * mm, y, f"${subtotal:.2f}")
 
-    y -= 7 * mm
+    y -= between_item_spacing
     pdf.drawString(5 * mm, y, f"Tax:")
     pdf.drawRightString(receipt_width - 5 * mm, y, f"${tax:.2f}")
 
-    y -= 7 * mm
+    y -= between_item_spacing
     pdf.drawString(5 * mm, y, f"Total:")
     pdf.setFont("Courier-Bold", 12)
     pdf.drawRightString(receipt_width - 5 * mm, y, f"${total:.2f}")
