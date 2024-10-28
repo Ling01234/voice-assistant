@@ -10,7 +10,7 @@ gunicorn==23.0.0
 h2==4.1.0
 importlib_metadata==8.0.0
 ipython==8.12.3
-js==1.0
+# js==1.0
 new==1.0
 numpy==2.1.2
 olefile==0.47
