@@ -14,14 +14,31 @@ from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
 from twilio.twiml.messaging_response import MessagingResponse
 from dotenv import load_dotenv
 import uvicorn
-import requests
-import reportlab
+import logging
 
 load_dotenv()
 
 # Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
+
+# Get the current year and month for the log file name
+log_filename = datetime.datetime.now().strftime("logs_%Y_%m.log")
+
+# Configure logging
+if not os.path.exists("logs"):
+    os.makedirs("logs")  # Create a "logs" directory if it doesn't exist
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(f"logs/{log_filename}", mode='a'),  # Append to log file
+        logging.StreamHandler()  # Also output logs to the console
+    ]
+)
+
+logger = logging.getLogger("voice-assistant-app")
 
 # Read the menu
 with open('menus/hanami/output_lunch.txt', 'r') as file:
