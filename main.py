@@ -455,6 +455,6 @@ async def send_order_to_lambda(order_info):
         except aiohttp.ClientError as e:
             logger.error(f"Error sending order to Lambda: {e}")
 
-
+# run app
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0")
