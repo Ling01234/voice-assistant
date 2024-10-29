@@ -244,10 +244,9 @@ async def send_session_update(openai_ws, verbose=False):
     await openai_ws.send(json.dumps(session_update))
 
 
-
 async def make_chatgpt_completion(transcript, timer):
     """Make a ChatGPT API call and enforce schema using JSON."""
-    print("Starting ChatGPT API call...")
+    logger.info("Starting ChatGPT API call...")
 
     # Generate unique call ID
     call_id = str(uuid.uuid4())
@@ -337,9 +336,9 @@ async def make_chatgpt_completion(transcript, timer):
     async with aiohttp.ClientSession() as session:
         try:
             async with session.post(url, headers=headers, json=payload) as response:
-                print(f"ChatGPT API response status: {response.status}")
+                logger.info(f"ChatGPT API response status: {response.status}")
                 data = await response.json()
-                print("Full ChatGPT API response:", json.dumps(data, indent=2))
+                logger.info("Full ChatGPT API response:", json.dumps(data, indent=2))
 
                 # Parse the function call arguments
                 arguments = json.loads(data["choices"][0]["message"]["function_call"]["arguments"])
@@ -357,13 +356,13 @@ async def make_chatgpt_completion(transcript, timer):
                 return arguments
 
         except Exception as error:
-            print(f"Error making ChatGPT completion call: {error}")
+            logger.error(f"Error making ChatGPT completion call: {error}")
             raise
 
 
 async def send_to_webhook(payload):
     """Send data to Make.com webhook."""
-    print("Sending data to webhook:", json.dumps(payload, indent=2))
+    logger.info("Sending data to webhook:", json.dumps(payload, indent=2))
 
     async with aiohttp.ClientSession() as session:
         try:
@@ -374,14 +373,14 @@ async def send_to_webhook(payload):
                 json=payload
             ) as response:
 
-                print(f"Webhook response status: {response.status}")
+                logger.info(f"Webhook response status: {response.status}")
                 if response.status == 200:
-                    print("Data successfully sent to webhook.")
+                    logger.info("Data successfully sent to webhook.")
                 else:
-                    print(f"Failed to send data to webhook: {response.reason}")
+                    logger.warning(f"Failed to send data to webhook: {response.reason}")
 
         except Exception as error:
-            print(f"Error sending data to webhook: {error}")
+            logger.error(f"Error sending data to webhook: {error}")
 
 async def process_transcript_and_send(transcript, timer):
     """Process the transcript and send the extracted data to the webhook."""
@@ -389,34 +388,34 @@ async def process_transcript_and_send(transcript, timer):
         # Make the ChatGPT completion call
         result = await make_chatgpt_completion(transcript, timer)
 
-        print("Processed result from ChatGPT:", json.dumps(result, indent=2))
+        logger.info("Processed result from ChatGPT:", json.dumps(result, indent=2))
 
         # Check if the response contains the expected data
         if result:
             # Check if the order was confirmed
             if not result.get("confirmation", False):
-                print("------------------------------------ Order not confirmed. No further action will be taken. ------------------------------------")
+                logger.info("------------------------------------ Order not confirmed. No further action will be taken. ------------------------------------")
                 return  # Stop further processing
 
             try:
                 # Send the order info to AWS Lambda (restored code)
                 await send_order_to_lambda(result["order_info"])
-                # print("Order information sent to Lambda.")
+                # logger.info("Order information sent to Lambda.")
 
                 # Send the parsed content to the webhook
                 # await send_to_webhook(result)
-                # print("Extracted and sent customer details:", result)
+                # logger.info("Extracted and sent customer details:", result)
 
             except json.JSONDecodeError as parse_error:
-                print(f"Error parsing JSON from ChatGPT response: {parse_error}")
+                logger.error(f"Error parsing JSON from ChatGPT response: {parse_error}")
         else:
-            print("Unexpected response structure from ChatGPT API")
+            logger.warning("Unexpected response structure from ChatGPT API")
 
     except asyncio.TimeoutError: #timeout error
-        print("Timed out while processing the transcript.")
+        logger.warning("Timed out while processing the transcript.")
 
     except Exception as error:
-        print(f"Error in process_transcript_and_send: {error}")
+        logger.error(f"Error in process_transcript_and_send: {error}")
 
 
 async def send_order_to_lambda(order_info):
@@ -429,7 +428,7 @@ async def send_order_to_lambda(order_info):
 
     async with aiohttp.ClientSession() as session:
         try:
-            print("Sending order info to AWS Lambda...")
+            logger.info("Sending order info to AWS Lambda...")
             async with session.post(lambda_url, headers=headers, json=order_info) as response:
                 
                 # If the response is successful (status code 200)
@@ -445,16 +444,16 @@ async def send_order_to_lambda(order_info):
                         with open("receipt.pdf", "wb") as pdf_file:
                             pdf_file.write(pdf_content)
 
-                        print("PDF receipt successfully received and saved as 'receipt.pdf'.")
+                        logger.info("PDF receipt successfully received and saved as 'receipt.pdf'.")
                     else:
-                        print(f"Unexpected content type: {content_type}")
+                        logger.warning(f"Unexpected content type: {content_type}")
                 
                 else:
-                    print(f"Failed to send order. Status Code: {response.status}")
-                    print("Response:", await response.text())
+                    logger.warning(f"Failed to send order. Status Code: {response.status}")
+                    logger.warning("Response:", await response.text())
 
         except aiohttp.ClientError as e:
-            print(f"Error sending order to Lambda: {e}")
+            logger.error(f"Error sending order to Lambda: {e}")
 
 
 if __name__ == "__main__":
