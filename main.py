@@ -65,6 +65,7 @@ async def handle_incoming_call(request: Request):
 
 @app.api_route("/incoming-message", methods=["GET", "POST"])
 async def handle_incoming_message(request: Request):
+    print(f'Incoming message: {request.json()}')
     # Create a Twilio MessagingResponse object
     response = MessagingResponse()
     
