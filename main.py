@@ -163,7 +163,7 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
                     response = json.loads(openai_message)
 
                     if response['type'] in LOG_EVENT_TYPES and verbose:
-                        logger.info(f"Received event: {response['type']}", response)
+                        logger.info(f"Received event ({response['type']}): {response}")
 
                     if response['type'] == 'conversation.item.input_audio_transcription.completed':
                         user_message = response.get('transcript', '').strip()
@@ -188,7 +188,7 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
                     # Handle 'speech_started' event
                     if response['type'] == 'input_audio_buffer.speech_started':
                         if verbose:
-                            logger.info("Speech Start:", response['type'])
+                            logger.info(f"Speech Start: {response['type']}")
 
                         # Clear ongoing speech on Twilio side
                         clear_event = {
@@ -241,7 +241,7 @@ async def send_session_update(openai_ws, verbose=False):
     }
     
     if verbose:
-        logger.info('Sending session update:', json.dumps(session_update))
+        logger.info(f'Sending session update: {json.dumps(session_update)}')
 
     await openai_ws.send(json.dumps(session_update))
 
@@ -340,7 +340,7 @@ async def make_chatgpt_completion(transcript, timer):
             async with session.post(url, headers=headers, json=payload) as response:
                 logger.info(f"ChatGPT API response status: {response.status}")
                 data = await response.json()
-                logger.info("Full ChatGPT API response:", json.dumps(data, indent=2))
+                logger.info(f"Full ChatGPT API response: {json.dumps(data, indent=2)}")
 
                 # Parse the function call arguments
                 arguments = json.loads(data["choices"][0]["message"]["function_call"]["arguments"])
@@ -364,7 +364,7 @@ async def make_chatgpt_completion(transcript, timer):
 
 async def send_to_webhook(payload):
     """Send data to Make.com webhook."""
-    logger.info("Sending data to webhook:", json.dumps(payload, indent=2))
+    logger.info(f"Sending data to webhook: {json.dumps(payload, indent=2)}")
 
     async with aiohttp.ClientSession() as session:
         try:
@@ -390,7 +390,7 @@ async def process_transcript_and_send(transcript, timer):
         # Make the ChatGPT completion call
         result = await make_chatgpt_completion(transcript, timer)
 
-        logger.info("Processed result from ChatGPT:", json.dumps(result, indent=2))
+        logger.info(f"Processed result from ChatGPT: {json.dumps(result, indent=2)}")
 
         # Check if the response contains the expected data
         if result:
@@ -406,7 +406,7 @@ async def process_transcript_and_send(transcript, timer):
 
                 # Send the parsed content to the webhook
                 # await send_to_webhook(result)
-                # logger.info("Extracted and sent customer details:", result)
+                # logger.info(f"Extracted and sent customer details: {result}")
 
             except json.JSONDecodeError as parse_error:
                 logger.error(f"Error parsing JSON from ChatGPT response: {parse_error}")
@@ -452,7 +452,8 @@ async def send_order_to_lambda(order_info):
                 
                 else:
                     logger.warning(f"Failed to send order. Status Code: {response.status}")
-                    logger.warning("Response:", await response.text())
+                    text_response = await response.text()
+                    logger.warning(f"Response: {text_response}")
 
         except aiohttp.ClientError as e:
             logger.error(f"Error sending order to Lambda: {e}")
