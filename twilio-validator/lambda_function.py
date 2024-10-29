@@ -15,6 +15,8 @@ def validate_twilio_request(url, body, signature):
     return validator.validate(url, body, signature)
 
 def lambda_handler(event, context):
+    print(f'event: {event}')
+
     # Extract headers from the API Gateway event
     headers = event.get('headers', {})
     signature = headers.get('x-twilio-signature', '')
@@ -50,10 +52,11 @@ def lambda_handler(event, context):
 
     print(f'Validation Successful')
 
-    # Forward the valid request to the FastAPI app on EC2
+    # Forward the full event to the FastAPI app on EC2
     ec2_response = requests.post(
-        "http://18.234.100.32:8000/twilio-webhook",
-        json=parsed_body,
+        # "http://172.31.86.162:8000/incoming-message",  # private ip address
+        "http://18.234.100.32:8000/incoming-call",  # public ip address
+        json=event,  # Send the full event object
         headers={'Content-Type': 'application/json'}
     )
 
