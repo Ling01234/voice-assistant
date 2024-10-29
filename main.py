@@ -18,11 +18,12 @@ import logging
 
 load_dotenv()
 
-# Configuration
+### ENVIRONMENT VARIABLES ###
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
 
-# Get the current year and month for the log file name
+
+### LOGGING CONFIG ###
 log_filename = datetime.datetime.now().strftime("logs_%Y_%m.log")
 
 # Configure logging
@@ -76,12 +77,8 @@ async def index_page():
 @app.api_route("/incoming-call", methods=["GET", "POST"])
 async def handle_incoming_call(request: Request):
     response = VoiceResponse()
-    response.say("Hi")
+    # response.say("Hi")
     # response.say("Hi, you have called Hanami Sushi. How can we help?")
-    # host = request.url.hostname
-    # port = request.url.port
-    # print(f'host: {host}')
-    # print(f'port: {port}')
     connect = Connect()
     connect.stream(url=f'wss://angelsbot.net/media-stream')
     # connect.stream(url=f'wss://{host}:{port}/media-stream')
@@ -115,6 +112,11 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
         }
     ) as openai_ws:
         await send_session_update(openai_ws)
+
+        # Add initial greeting to OpenAI for first response
+        initial_greeting = {"input": "Hello! Welcome to Hanami Sushi. How can I help you today?"}
+        await openai_ws.send(json.dumps(initial_greeting))  # Send initial greeting to OpenAI
+
         stream_sid = None
         transcript = ""
 
