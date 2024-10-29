@@ -114,7 +114,10 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
         await send_session_update(openai_ws)
 
         # Add initial greeting to OpenAI for first response
-        initial_greeting = {"input": "Hello! Welcome to Hanami Sushi. How can I help you today?"}
+        initial_greeting = {
+            "input": "Hello! Welcome to Hanami Sushi. How can I help you today?",
+            "response_type": "audio"
+        }
         await openai_ws.send(json.dumps(initial_greeting))  # Send initial greeting to OpenAI
 
         stream_sid = None
