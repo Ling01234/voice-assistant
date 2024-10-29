@@ -7,7 +7,7 @@ import json
 import base64
 import asyncio
 import websockets
-from fastapi import FastAPI, WebSocket, Request
+from fastapi import FastAPI, WebSocket, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
@@ -44,6 +44,10 @@ LOG_EVENT_TYPES = [
 ]
 
 app = FastAPI()
+
+@app.get("/health")
+async def health_check():
+    return Response(content="OK", status_code=200)
 
 if not OPENAI_API_KEY:
     raise ValueError('Missing the OpenAI API key. Please set it in the .env file.')
