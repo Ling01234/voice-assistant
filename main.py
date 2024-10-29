@@ -91,7 +91,7 @@ async def handle_incoming_call(request: Request):
 @app.api_route("/incoming-message", methods=["GET", "POST"])
 async def handle_incoming_message(request: Request):
     data = await request.json()
-    print(f'Incoming message: {data}')
+    logger.info(f'Incoming message: {data}')
     # Create a Twilio MessagingResponse object
     response = MessagingResponse()
     
@@ -103,7 +103,7 @@ async def handle_incoming_message(request: Request):
 
 @app.websocket("/media-stream")
 async def handle_media_stream(websocket: WebSocket, verbose = False):
-    print("Client connected")
+    logger.info("Client connected")
     start_timer = time.time()
     await websocket.accept()
 
@@ -133,21 +133,21 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
 
                     elif data['event'] == 'start':
                         stream_sid = data['start']['streamSid']
-                        print(f"Incoming stream has started {stream_sid}")
+                        logger.info(f"Incoming stream has started {stream_sid}")
 
                     elif data['event'] == 'stop':
                         # Extract summary after call ends
-                        print("Call ended. Extracting customer details...")
+                        logger.info("Call ended. Extracting customer details...")
                         end_timer = time.time()
                         await process_transcript_and_send(transcript, end_timer - start_timer)
 
             except WebSocketDisconnect:
-                print("Client disconnected.")
+                logger.info("Client disconnected.")
                 if openai_ws.open:
                     await openai_ws.close()
 
             except Exception as e:
-                print(f"Error in receive_from_twilio: {e}")
+                logger.error(f"Error in receive_from_twilio: {e}")
 
             finally:
                 # Ensure OpenAI WebSocket is closed if still open
@@ -161,12 +161,12 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
                     response = json.loads(openai_message)
 
                     if response['type'] in LOG_EVENT_TYPES and verbose:
-                        print(f"Received event: {response['type']}", response)
+                        logger.info(f"Received event: {response['type']}", response)
 
                     if response['type'] == 'conversation.item.input_audio_transcription.completed':
                         user_message = response.get('transcript', '').strip()
                         transcript += f"User: {user_message}\n\n"
-                        print(f"User: {user_message}")
+                        logger.info(f"User: {user_message}")
 
                     if response['type'] == 'response.done':
                         outputs = response.get('response', {}).get('output', [{}])
@@ -178,15 +178,15 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
                             agent_message = 'Agent message not found'
                             
                         transcript += f"Agent: {agent_message}\n\n"
-                        print(f"Agent: {agent_message}")
+                        logger.info(f"Agent: {agent_message}")
 
                     if response['type'] == 'session.updated' and verbose:
-                        print(f'Session updated successfully: {response}')
+                        logger.info(f'Session updated successfully: {response}')
 
                     # Handle 'speech_started' event
                     if response['type'] == 'input_audio_buffer.speech_started':
                         if verbose:
-                            print("Speech Start:", response['type'])
+                            logger.info("Speech Start:", response['type'])
 
                         # Clear ongoing speech on Twilio side
                         clear_event = {
@@ -194,7 +194,7 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
                             "event": "clear"
                         }
                         await websocket.send_json(clear_event)
-                        print("Cancelling AI speech from the server")
+                        logger.info("Cancelling AI speech from the server")
 
                         # Send interrupt message to OpenAI
                         interrupt_message = {"type": "response.cancel"}
@@ -214,10 +214,10 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
                             }
                             await websocket.send_json(audio_delta)
                         except Exception as e:
-                            print(f"Error processing audio data: {e}")
+                            logger.error(f"Error processing audio data: {e}")
 
             except Exception as e:
-                print(f"Error in send_to_twilio: {e}")
+                logger.error(f"Error in send_to_twilio: {e}")
 
         await asyncio.gather(receive_from_twilio(), send_to_twilio())
 
@@ -239,9 +239,10 @@ async def send_session_update(openai_ws, verbose=False):
     }
     
     if verbose:
-        print('Sending session update:', json.dumps(session_update))
+        logger.info('Sending session update:', json.dumps(session_update))
 
     await openai_ws.send(json.dumps(session_update))
+
 
 
 async def make_chatgpt_completion(transcript, timer):
