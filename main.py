@@ -58,9 +58,11 @@ async def handle_incoming_call(request: Request):
     response.say("Hi")
     # response.say("Hi, you have called Hanami Sushi. How can we help?")
     host = request.url.hostname
+    port = request.url.port
     print(f'host: {host}')
+    print(f'port: {port}')
     connect = Connect()
-    connect.stream(url=f'wss://{host}/media-stream')
+    connect.stream(url=f'wss://{host}:{port}/media-stream')
     response.append(connect)
     return HTMLResponse(content=str(response), media_type="application/xml")
 
