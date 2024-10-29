@@ -54,6 +54,16 @@ async def index_page():
 
 @app.api_route("/incoming-call", methods=["GET", "POST"])
 async def handle_incoming_call(request: Request):
+    # Check if the request contains JSON and parse it accordingly
+    try:
+        data = await request.json()  # Attempt to parse as JSON
+        print("Received JSON data:", data)
+    except:
+        # If JSON parsing fails, assume it’s form-encoded
+        form_data = await request.form()
+        data = {key: form_data[key] for key in form_data}
+        print("Received form data:", data)
+        
     response = VoiceResponse()
     response.say("Hi")
     # response.say("Hi, you have called Hanami Sushi. How can we help?")
