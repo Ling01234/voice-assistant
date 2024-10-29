@@ -11,6 +11,7 @@ from fastapi import FastAPI, WebSocket, Request
 from fastapi.responses import HTMLResponse
 from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
+from twilio.twiml.messaging_response import MessagingResponse
 from dotenv import load_dotenv
 import uvicorn
 import requests
@@ -60,6 +61,17 @@ async def handle_incoming_call(request: Request):
     connect = Connect()
     connect.stream(url=f'wss://{host}/media-stream')
     response.append(connect)
+    return HTMLResponse(content=str(response), media_type="application/xml")
+
+@app.api_route("/incoming-message", methods=["GET", "POST"])
+async def handle_incoming_message(request: Request):
+    # Create a Twilio MessagingResponse object
+    response = MessagingResponse()
+    
+    # Add a message to reply with "Hello"
+    response.message("Hello")
+    
+    # Return the TwiML response as XML
     return HTMLResponse(content=str(response), media_type="application/xml")
 
 @app.websocket("/media-stream")
