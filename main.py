@@ -1,4 +1,5 @@
 import os
+from database import create_connection, close_connection, insert_call_record, insert_order_record
 import time
 import uuid
 import datetime
@@ -391,32 +392,33 @@ async def process_transcript_and_send(transcript, timer):
         # Make the ChatGPT completion call
         result = await content_extraction(transcript, timer)
 
-        logger.info(f"Processed result from ChatGPT: {json.dumps(result, indent=2)}")
-
         # Check if the response contains the expected data
         if result:
-            # Check if the order was confirmed
             if not result.get("confirmation", False):
-                logger.info("------------------------------------ Order not confirmed. No further action will be taken. ------------------------------------")
-                return  # Stop further processing
+                return  # Stop if the order was not confirmed
 
-            try:
-                # Send the order info to AWS Lambda (restored code)
-                await send_order_to_lambda(result["order_info"])
-                # logger.info("Order information sent to Lambda.")
+            # Database connection setup
+            connection = create_connection()
 
-                # Send the parsed content to the webhook
-                # await send_to_webhook(result)
-                # logger.info(f"Extracted and sent customer details: {result}")
+            # Insert call record
+            call_id = result["call_id"]
+            restaurant_id = "rest-12345" # test restaurant ID
+            transcript_text = result["full_transcription"]
+            confirmation = result["confirmation"]
+            insert_call_record(connection, call_id, restaurant_id, transcript_text, confirmation)
 
-            except json.JSONDecodeError as parse_error:
-                logger.error(f"Error parsing JSON from ChatGPT response: {parse_error}")
-        else:
-            logger.warning("Unexpected response structure from ChatGPT API")
+            # Insert order record if confirmed
+            if confirmation:
+                insert_order_record(connection, result["order_info"])
 
-    except asyncio.TimeoutError: #timeout error
+            # Close database connection
+            close_connection(connection)
+
+            # Send order info to Lambda or other processes if needed
+            await send_order_to_lambda(result["order_info"])
+
+    except asyncio.TimeoutError:
         logger.warning("Timed out while processing the transcript.")
-
     except Exception as error:
         logger.error(f"Error in process_transcript_and_send: {error}")
 
