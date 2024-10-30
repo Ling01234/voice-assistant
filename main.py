@@ -395,8 +395,6 @@ async def process_transcript_and_send(transcript, timer):
 
         # Check if the response contains the expected data
         if result:
-            if not result.get("confirmation", False):
-                return  # Stop if the order was not confirmed
 
             # Database connection setup
             connection = create_connection()
@@ -405,7 +403,7 @@ async def process_transcript_and_send(transcript, timer):
             call_id = result["call_id"]
             restaurant_id = RESTAURANT_ID
             transcript_text = result["full_transcription"]
-            confirmation = result["confirmation"]
+            confirmation = result.get("confirmation", False)
             insert_call_record(connection, call_id, restaurant_id, transcript_text, confirmation)
 
             # Insert order record if confirmed
@@ -414,6 +412,9 @@ async def process_transcript_and_send(transcript, timer):
 
             # Close database connection
             close_connection(connection)
+            
+            if not confirmation:
+                return  # Stop if the order was not confirmed
 
             # Send order info to Lambda or other processes if needed
             await send_order_to_lambda(result["order_info"])
