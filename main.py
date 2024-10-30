@@ -46,6 +46,8 @@ logger = logging.getLogger("voice-assistant-app")
 with open('menus/hanami/output_lunch.txt', 'r') as file:
     menu = file.read()
 
+RESTAURANT_ID = "rest-12345"  # Test restaurant ID
+
 SYSTEM_MESSAGE = (
     f"You are a friendly receptionist at a restaurant taking orders. Below are the extracted content from the menu. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time.\n {menu}")
 
@@ -401,7 +403,7 @@ async def process_transcript_and_send(transcript, timer):
 
             # Insert call record
             call_id = result["call_id"]
-            restaurant_id = "rest-12345" # test restaurant ID
+            restaurant_id = RESTAURANT_ID
             transcript_text = result["full_transcription"]
             confirmation = result["confirmation"]
             insert_call_record(connection, call_id, restaurant_id, transcript_text, confirmation)
