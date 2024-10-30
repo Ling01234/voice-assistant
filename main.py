@@ -275,7 +275,8 @@ async def make_chatgpt_completion(transcript, timer):
                     "pickup or delivery time, and the full transcript. "
                     "Also, structure the order information in JSON format with items and subtotal."
                     "For each item, also extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty. "
-                    "Additionally, determine if the order was confirmed and store this in a 'confirmation' key (as a boolean)."
+                    "All information must be extracted from the transcript. If any is missing, simply leave it empty. Do not make up any information. "
+                    "Finally, determine if the order was confirmed and store this in a 'confirmation' key (as a boolean)."
                 )
             },
             {"role": "user", "content": transcript}
