@@ -278,7 +278,7 @@ async def content_extraction(transcript, timer):
                     "Also, structure the order information in JSON format with items."
                     "For each item, also extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty. "
                     "All information must be extracted from the transcript. If any is missing, simply leave it empty. Do not make up any information. "
-                    "Finally, determine if the order was confirmed and store this in a 'confirmation' key (as a boolean)."
+                    "Finally, determine if the order was placed, or if it was an mis-dial, or if the user hung up before finishing the order. Store this in a 'confirmation' key (as a boolean) if the order seems to have been placed."
                 )
             },
             {"role": "user", "content": transcript}
