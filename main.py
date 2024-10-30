@@ -249,7 +249,7 @@ async def send_session_update(openai_ws, verbose=False):
     await openai_ws.send(json.dumps(session_update))
 
 
-async def make_chatgpt_completion(transcript, timer):
+async def content_extraction(transcript, timer):
     """Make a ChatGPT API call and enforce schema using JSON."""
     logger.info("Starting ChatGPT API call...")
 
@@ -316,13 +316,10 @@ async def make_chatgpt_completion(transcript, timer):
                                         "required": ["name", "quantity", "unit_price", "notes"]
                                     }
                                 },
-                                # "subtotal": {"type": "number"},
-                                # "tax": {"type": "number"},
-                                # "total": {"type": "number"}
                             },
                             "required": [
                                 "order_id", "customer_name", "timestamp",
-                                "items" #, "subtotal", "tax", "total"
+                                "items"
                             ]
                         }
                     },
@@ -392,7 +389,7 @@ async def process_transcript_and_send(transcript, timer):
     """Process the transcript and send the extracted data to the webhook."""
     try:
         # Make the ChatGPT completion call
-        result = await make_chatgpt_completion(transcript, timer)
+        result = await content_extraction(transcript, timer)
 
         logger.info(f"Processed result from ChatGPT: {json.dumps(result, indent=2)}")
 
