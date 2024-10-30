@@ -354,9 +354,15 @@ async def content_extraction(transcript, timer):
                 arguments["timer"] = timer
                 arguments['order_info']['timestamp'] = current_time
 
-                # Add formatted order_id to order_info
+                # Add formatted order_id to order_info + required info for the order
                 timestamp_seconds = int(datetime.datetime.now().timestamp())
                 arguments["order_info"]["order_id"] = f"ORD-{timestamp_seconds}-{call_id[-5:]}"
+                arguments['order_info']['call_id'] = call_id
+                arguments['order_info']['restaurant_id'] = RESTAURANT_ID
+                arguments['order_info']['customer_name'] = arguments['name']
+                arguments['order_info']['phone_number'] = arguments['phone_number']
+                arguments['order_info']['phone_number'] = arguments['pickup']
+                arguments['order_info']['pickup_or_delivery_time'] = arguments['pickup_or_delivery_time']
 
                 return arguments
 
