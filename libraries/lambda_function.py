@@ -19,15 +19,22 @@ def generate_pdf_receipt(event):
     order_id = event.get("order_id", "N/A")
     timestamp = event.get("timestamp", "N/A")
     items = event.get("items", [])
-    subtotal = event.get("subtotal", 0.0)
+
+    # subtotal
+    subtotal = 0
+    for item in items:
+        item_price = item['quantity'] * item['unit_price']
+        subtotal += item_price
+
     tax = round(subtotal * TAX_RATE, 2)
     total = round(subtotal + tax, 2) 
 
     # PDF page size for 80mm thermal printer
-    receipt_width = 80 * mm
+    receipt_width = 80 * mm  # 80mm width
 
-    # Calculate the total height for the items section
-    item_section_height = 0
+    # Calculate total height for the items section
+    item_section_height = 0  # Initialize total height for items
+
     for item in items:
         item_name = item["name"]
         quantity = item["quantity"]
@@ -47,13 +54,14 @@ def generate_pdf_receipt(event):
         # Add spacing between items (only after each full item is drawn)
         item_section_height += between_item_spacing
 
-    item_section_height -= between_item_spacing  # Remove extra spacing after the last item
+    # Remove extra spacing after the last item
+    item_section_height -= between_item_spacing  # Avoid adding spacing after the last item
 
     # Calculate the final receipt height dynamically
-    header_height = 40 * mm
-    total_section_height = 40 * mm
-    footer_height = 30 * mm
-    margin = 10 * mm
+    header_height = 40 * mm  # Space for title and order details
+    total_section_height = 4 * between_item_spacing  # Subtotal, tax, and total section
+    footer_height = 30 * mm  # Footer space for thank you message
+    margin = 15 * mm  # Extra margin to avoid clipping
 
     receipt_height = (
         header_height 
@@ -67,18 +75,19 @@ def generate_pdf_receipt(event):
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=(receipt_width, receipt_height))
 
-    # Set up fonts and title
+    # Set up fonts
     pdf.setFont("Courier-Bold", 12)
     pdf.drawCentredString(receipt_width / 2, receipt_height - 10 * mm, "Restaurant Receipt")
+
     pdf.setFont("Courier", 10)
 
     # Draw separators
     def draw_separator(y):
         pdf.setFont("Courier", 8)
-        pdf.drawString(5 * mm, y, "-" * 40)
+        pdf.drawString(5 * mm, y, "-" * 40)  # Dashed separator line
 
     # Customer and order details
-    y = receipt_height - 25 * mm
+    y = receipt_height - 20 * mm
     pdf.drawString(5 * mm, y, f"Order ID: {order_id}")
     y -= 5 * mm
     pdf.drawString(5 * mm, y, f"Customer: {customer_name}")
@@ -88,7 +97,7 @@ def generate_pdf_receipt(event):
     # Items section
     y -= 15 * mm
     pdf.drawString(5 * mm, y, "Ordered Items:")
-    y -= 12 * mm
+    y -= between_item_spacing
 
     for item in items:
         item_name = item["name"]
@@ -125,22 +134,24 @@ def generate_pdf_receipt(event):
 
             pdf.setFont("Courier", 10)  # Switch back to regular font for the content
 
+            y += same_item_spacing
+            y -= between_item_spacing  # Adjust spacing for the next item
         y -= between_item_spacing  # Adjust spacing for the next item
 
     # Update the last item's height
     y += between_item_spacing
 
     # Totals section
-    draw_separator(y - 5 * mm)
-    y -= 12 * mm
+    draw_separator(y - between_item_spacing)
+    y -= 2 * between_item_spacing
     pdf.drawString(5 * mm, y, f"Subtotal:")
     pdf.drawRightString(receipt_width - 5 * mm, y, f"${subtotal:.2f}")
 
-    y -= 7 * mm
+    y -= between_item_spacing
     pdf.drawString(5 * mm, y, f"Tax:")
     pdf.drawRightString(receipt_width - 5 * mm, y, f"${tax:.2f}")
 
-    y -= 7 * mm
+    y -= between_item_spacing
     pdf.drawString(5 * mm, y, f"Total:")
     pdf.setFont("Courier-Bold", 12)
     pdf.drawRightString(receipt_width - 5 * mm, y, f"${total:.2f}")

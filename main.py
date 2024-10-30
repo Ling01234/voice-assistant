@@ -273,7 +273,7 @@ async def make_chatgpt_completion(transcript, timer):
                     "Extract the following details from the transcript: "
                     "name, phone number, order type (pickup or delivery), "
                     "pickup or delivery time, and the full transcript. "
-                    "Also, structure the order information in JSON format with items and subtotal."
+                    "Also, structure the order information in JSON format with items."
                     "For each item, also extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty. "
                     "All information must be extracted from the transcript. If any is missing, simply leave it empty. Do not make up any information. "
                     "Finally, determine if the order was confirmed and store this in a 'confirmation' key (as a boolean)."
@@ -316,13 +316,13 @@ async def make_chatgpt_completion(transcript, timer):
                                         "required": ["name", "quantity", "unit_price", "notes"]
                                     }
                                 },
-                                "subtotal": {"type": "number"},
+                                # "subtotal": {"type": "number"},
                                 # "tax": {"type": "number"},
                                 # "total": {"type": "number"}
                             },
                             "required": [
                                 "order_id", "customer_name", "timestamp",
-                                "items", "subtotal" #, "tax", "total"
+                                "items" #, "subtotal", "tax", "total"
                             ]
                         }
                     },
