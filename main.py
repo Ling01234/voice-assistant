@@ -361,7 +361,7 @@ async def content_extraction(transcript, timer):
                 arguments['order_info']['restaurant_id'] = RESTAURANT_ID
                 arguments['order_info']['customer_name'] = arguments['name']
                 arguments['order_info']['phone_number'] = arguments['phone_number']
-                arguments['order_info']['phone_number'] = arguments['pickup']
+                arguments['order_info']['pickup'] = arguments['pickup']
                 arguments['order_info']['pickup_or_delivery_time'] = arguments['pickup_or_delivery_time']
 
                 return arguments
