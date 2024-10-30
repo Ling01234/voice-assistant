@@ -78,11 +78,10 @@ async def index_page():
 @app.api_route("/incoming-call", methods=["GET", "POST"])
 async def handle_incoming_call(request: Request):
     response = VoiceResponse()
-    # response.say("Hi")
+    response.say("Hi, how can I help you today?")
     # response.say("Hi, you have called Hanami Sushi. How can we help?")
     connect = Connect()
     connect.stream(url=f'wss://angelsbot.net/media-stream')
-    # connect.stream(url=f'wss://{host}:{port}/media-stream')
     response.append(connect)
     return HTMLResponse(content=str(response), media_type="application/xml")
 
@@ -114,12 +113,12 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
     ) as openai_ws:
         await send_session_update(openai_ws)
 
-        # Add initial greeting to OpenAI for first response
-        initial_greeting = {
-            "input": "Hello! Welcome to Hanami Sushi. How can I help you today?",
-            "response_type": "audio"
-        }
-        await openai_ws.send(json.dumps(initial_greeting))  # Send initial greeting to OpenAI
+        # # Add initial greeting to OpenAI for first response
+        # initial_greeting = {
+        #     "input": "Hello! Welcome to Hanami Sushi. How can I help you today?",
+        #     "response_type": "audio"
+        # }
+        # await openai_ws.send(json.dumps(initial_greeting))  # Send initial greeting to OpenAI
 
         stream_sid = None
         transcript = ""
