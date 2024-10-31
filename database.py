@@ -108,6 +108,7 @@ def insert_order_items(connection, order_items):
         
         connection.commit()
         logger.info("Order items inserted successfully.")
-        
+    
+    # error
     except Error as e:
         logger.error(f"Error inserting order items: {e}")
