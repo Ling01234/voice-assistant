@@ -173,7 +173,7 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
                     if response['type'] == 'conversation.item.input_audio_transcription.completed':
                         user_message = response.get('transcript', '').strip()
                         transcript += f"User: {user_message}\n\n"
-                        logger.info(f"User: {user_message}")
+                        logger.info(f"User: {user_message}\n")
 
                     if response['type'] == 'response.done':
                         outputs = response.get('response', {}).get('output', [{}])
@@ -185,7 +185,7 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
                             agent_message = 'Agent message not found'
                             
                         transcript += f"Agent: {agent_message}\n\n"
-                        logger.info(f"Agent: {agent_message}")
+                        logger.info(f"Agent: {agent_message}\n")
 
                     if response['type'] == 'session.updated' and verbose:
                         logger.info(f'Session updated successfully: {response}')
@@ -353,6 +353,7 @@ async def content_extraction(transcript, timer):
                 arguments["time_of_order"] = current_time
                 arguments["timer"] = timer
                 arguments['order_info']['timestamp'] = current_time
+                arguments['full_transcription'] = transcript #transcript with newlines
 
                 # Add formatted order_id to order_info + required info for the order
                 timestamp_seconds = int(datetime.datetime.now().timestamp())

@@ -1,4 +1,5 @@
 import mysql.connector
+import json
 from mysql.connector import Error
 from dotenv import load_dotenv
 import os
@@ -50,6 +51,15 @@ def insert_call_record(connection, call_id, restaurant_id, transcript, confirmat
 
 def insert_order_record(connection, order_info):
     try:
+        logger.debug(f"order_id: {order_info.get('order_id')}")
+        logger.debug(f"call_id: {order_info.get('call_id')}")
+        logger.debug(f"restaurant_id: {order_info.get('restaurant_id')}")
+        logger.debug(f"customer_name: {order_info.get('customer_name')}")
+        logger.debug(f"phone_number: {order_info.get('phone_number')}")
+        logger.debug(f"pickup: {order_info.get('pickup')}")
+        logger.debug(f"pickup_or_delivery_time: {order_info.get('pickup_or_delivery_time')}")
+
+        
         cursor = connection.cursor()
         query = """
         INSERT INTO Orders (order_id, call_id, restaurant_id, customer_name, phone_number, pickup, pickup_or_delivery_time)
