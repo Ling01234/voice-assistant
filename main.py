@@ -32,7 +32,7 @@ if not os.path.exists("logs"):
     os.makedirs("logs")  # Create a "logs" directory if it doesn't exist
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler(f"logs/{log_filename}", mode='a'),  # Append to log file
