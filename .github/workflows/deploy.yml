@@ -10,21 +10,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: Configure AWS credentials
+      - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Update code on EC2 instance
+      - name: Deploy to EC2 using SSM
         run: |
-          aws ssm send-command \
-            --document-name "AWS-RunShellScript" \
-            --targets '[{"Key":"InstanceIds","Values":["${{ secrets.EC2_INSTANCE_ID }}"]}]' \
-            --parameters '{"commands":["git config --global --add safe.directory /home/ubuntu/voice-assistant", "cd /home/ubuntu/voice-assistant && git pull origin main"]}' \
-            --comment "Deploy latest code from GitHub" \
+          aws ssm send-command --document-name "AWS-RunShellScript" \
+            --targets "Key=instanceids,Values=${{ secrets.EC2_INSTANCE_ID }}" \
+            --comment "Git pull for deployment" \
+            --parameters 'commands=["cd /home/ubuntu/voice-assistant", "git pull origin main"]' \
             --output text
