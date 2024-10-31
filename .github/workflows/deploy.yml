@@ -25,6 +25,6 @@ jobs:
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --targets '[{"Key":"InstanceIds","Values":["${{ secrets.EC2_INSTANCE_ID }}"]}]' \
-            --parameters '{"commands":["cd /home/ubuntu/voice-assistant && git pull origin main"]}' \
+            --parameters '{"commands":["git config --global --add safe.directory /home/ubuntu/voice-assistant", "cd /home/ubuntu/voice-assistant && git pull origin main"]}' \
             --comment "Deploy latest code from GitHub" \
             --output text
