@@ -51,15 +51,15 @@ def insert_call_record(connection, call_id, restaurant_id, transcript, confirmat
 
 def insert_order_record(connection, order_info):
     try:
-        logger.debug(f"order_id: {order_info.get('order_id')}")
-        logger.debug(f"call_id: {order_info.get('call_id')}")
-        logger.debug(f"restaurant_id: {order_info.get('restaurant_id')}")
-        logger.debug(f"customer_name: {order_info.get('customer_name')}")
-        logger.debug(f"phone_number: {order_info.get('phone_number')}")
-        logger.debug(f"pickup: {order_info.get('pickup')}")
-        logger.debug(f"pickup_or_delivery_time: {order_info.get('pickup_or_delivery_time')}")
+        # logger.debug(f"order_id: {order_info.get('order_id')}")
+        # logger.debug(f"call_id: {order_info.get('call_id')}")
+        # logger.debug(f"restaurant_id: {order_info.get('restaurant_id')}")
+        # logger.debug(f"customer_name: {order_info.get('customer_name')}")
+        # logger.debug(f"phone_number: {order_info.get('phone_number')}")
+        # logger.debug(f"pickup: {order_info.get('pickup')}")
+        # logger.debug(f"pickup_or_delivery_time: {order_info.get('pickup_or_delivery_time')}")
 
-        
+
         cursor = connection.cursor()
         query = """
         INSERT INTO Orders (order_id, call_id, restaurant_id, customer_name, phone_number, pickup, pickup_or_delivery_time)
@@ -78,3 +78,36 @@ def insert_order_record(connection, order_info):
         logger.info("Order record inserted successfully.")
     except Error as e:
         logger.error(f"Error inserting order record: {e}")
+
+
+def insert_order_items(connection, order_items):
+    """
+    Inserts multiple order items into the Order_Items table.
+
+    Parameters:
+        connection (MySQLConnection): The database connection.
+        order_items (list): A list of dictionaries, each containing item information.
+    """
+    try:
+        cursor = connection.cursor()
+        
+        query = """
+        INSERT INTO Order_Items (order_id, item_name, quantity, unit_price, notes)
+        VALUES (%s, %s, %s, %s, %s)
+        """
+        
+        # Iterate through each order item and insert it
+        for item in order_items:
+            cursor.execute(query, (
+                item["order_id"],
+                item["item_name"],
+                item["quantity"],
+                item["unit_price"],
+                item.get("notes", "")  # Use an empty string if notes are not provided
+            ))
+        
+        connection.commit()
+        logger.info("Order items inserted successfully.")
+        
+    except Error as e:
+        logger.error(f"Error inserting order items: {e}")

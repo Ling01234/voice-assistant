@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy to EC2 via SSM
 
 on:
   push:
@@ -13,15 +13,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.5.3
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          ssh-private-key: ${{ secrets.ANGELSBOT_EC2_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Deploy to EC2
-        env:
-            HOST: ${{ secrets.EC2_HOST }}
-            USER: ${{ secrets.EC2_USER }}
-            PORT: ${{ secrets.EC2_PORT || '22' }}
+      - name: Deploy to EC2 using SSM
         run: |
-            ssh -o StrictHostKeyChecking=no -p $PORT $USER@$HOST "cd /home/ubuntu/voice-assistant && git pull origin main"
+          aws ssm send-command --document-name "AWS-RunShellScript" \
+            --targets "Key=instanceids,Values=${{ secrets.EC2_INSTANCE_ID }}" \
+            --comment "Git pull for deployment" \
+            --parameters 'commands=["cd /home/ubuntu/voice-assistant", "git pull origin main"]' \
+            --output text

@@ -1,5 +1,5 @@
 import os
-from database import create_connection, close_connection, insert_call_record, insert_order_record
+from database import *
 import time
 import uuid
 import datetime
@@ -32,7 +32,7 @@ if not os.path.exists("logs"):
     os.makedirs("logs")  # Create a "logs" directory if it doesn't exist
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler(f"logs/{log_filename}", mode='a'),  # Append to log file
@@ -416,6 +416,7 @@ async def process_transcript_and_send(transcript, timer):
             # Insert order record if confirmed
             if confirmation:
                 insert_order_record(connection, result["order_info"])
+                insert_order_items(connection, result["order_info"]["items"])
 
             # Close database connection
             close_connection(connection)
