@@ -145,6 +145,7 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
                     elif data['event'] == 'stop':
                         # Extract summary after call ends
                         logger.info("Call ended. Extracting customer details...")
+                        logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
                         await process_transcript_and_send(transcript, end_timer - start_timer)
 
@@ -407,7 +408,7 @@ async def process_transcript_and_send(transcript, timer):
             confirmation = result.get("confirmation", False)
             timestamp = result["time_of_order"]
             insert_call_record(connection, call_id, restaurant_id, 
-                               timestamp, transcript_text, confirmation)
+                               transcript_text, timestamp, confirmation)
 
             # Insert order record if confirmed
             if confirmation:
