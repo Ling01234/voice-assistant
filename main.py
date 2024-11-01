@@ -257,7 +257,7 @@ async def content_extraction(transcript, timer):
 
     # Generate unique call ID
     call_id = str(uuid.uuid4())
-    current_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
@@ -405,7 +405,9 @@ async def process_transcript_and_send(transcript, timer):
             restaurant_id = RESTAURANT_ID
             transcript_text = result["full_transcription"]
             confirmation = result.get("confirmation", False)
-            insert_call_record(connection, call_id, restaurant_id, transcript_text, confirmation)
+            timestamp = result["time_of_order"]
+            insert_call_record(connection, call_id, restaurant_id, 
+                               timestamp, transcript_text, confirmation)
 
             # Insert order record if confirmed
             if confirmation:

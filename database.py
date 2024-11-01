@@ -36,14 +36,16 @@ def close_connection(connection):
         connection.close()
         logger.info("Database connection closed")
 
-def insert_call_record(connection, call_id, restaurant_id, transcript, confirmation):
+def insert_call_record(connection, call_id, restaurant_id, transcript, 
+                       timestamp, confirmation):
     try:
         cursor = connection.cursor()
         query = """
-        INSERT INTO Calls (call_id, restaurant_id, transcript, confirmation)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO Calls (call_id, restaurant_id, transcript, timestamp, confirmation)
+        VALUES (%s, %s, %s, %s, %s)
         """
-        cursor.execute(query, (call_id, restaurant_id, transcript, confirmation))
+        cursor.execute(query, (call_id, restaurant_id, transcript, 
+                               timestamp, confirmation))
         connection.commit()
         logger.info("Call record inserted successfully.")
     except Error as e:
@@ -62,8 +64,8 @@ def insert_order_record(connection, order_info):
 
         cursor = connection.cursor()
         query = """
-        INSERT INTO Orders (order_id, call_id, restaurant_id, customer_name, phone_number, pickup, pickup_or_delivery_time)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO Orders (order_id, call_id, restaurant_id, customer_name, phone_number, pickup, pickup_or_delivery_time, timestamp)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(query, (
             order_info["order_id"], 
@@ -72,7 +74,8 @@ def insert_order_record(connection, order_info):
             order_info["customer_name"],
             order_info["phone_number"],
             order_info["pickup"],
-            order_info["pickup_or_delivery_time"]
+            order_info["pickup_or_delivery_time"],
+            order_info["timestamp"]
         ))
         connection.commit()
         logger.info("Order record inserted successfully.")
