@@ -268,17 +268,18 @@ async def content_extraction(transcript, timer):
     # Request payload with enforced JSON schema
     payload = {
         "model": "gpt-3.5-turbo",
+        # "model": "gpt-4o-2024-08-06",
         "messages": [
             {
                 "role": "system",
                 "content": (
                     "Extract the following details from the transcript: "
-                    "name, phone number, order type (pickup or delivery), "
-                    "pickup or delivery time, and the full transcript. "
+                    "name, phone number, order type (pickup or delivery) "
+                    "and the pickup or delivery time. "
                     "Also, structure the order information in JSON format with items."
                     "For each item, also extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty. "
-                    "All information must be extracted from the transcript. If any is missing, simply leave it empty. Do not make up any information. "
-                    "Finally, determine if the order was placed, or if it was an mis-dial, or if the user hung up before finishing the order. Store this in a 'confirmation' key (as a boolean) if the order seems to have been placed."
+                    "All information must be extracted from the given transcript below. If any is missing, simply leave it empty. Do not make up any information. "
+                    "Finally, determine if the order was placed, or if it was an mis-dial, or if the user hung up before finishing the order. Store this in a 'confirmation' key (as a boolean) if the order seems to have been placed by the user."
                 )
             },
             {"role": "user", "content": transcript}
@@ -290,21 +291,14 @@ async def content_extraction(transcript, timer):
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "call_id": {"type": "string"},
                         "name": {"type": "string"},
                         "phone_number": {"type": "string"},
-                        "time_of_order": {"type": "string"},
                         "pickup": {"type": "boolean"},
                         "pickup_or_delivery_time": {"type": "string"},
-                        "full_transcription": {"type": "string"},
                         "confirmation": {"type": "boolean"},  # Added confirmation key
-                        "timer": {"type": "number"},
                         "order_info": {
                             "type": "object",
                             "properties": {
-                                "order_id": {"type": "string"},
-                                "customer_name": {"type": "string"},
-                                "timestamp": {"type": "string"},
                                 "items": {
                                     "type": "array",
                                     "items": {
@@ -320,15 +314,14 @@ async def content_extraction(transcript, timer):
                                 },
                             },
                             "required": [
-                                "order_id", "customer_name", "timestamp",
                                 "items"
                             ]
                         }
                     },
                     "required": [
-                        "call_id", "name", "phone_number", "time_of_order",
-                        "pickup", "pickup_or_delivery_time", "full_transcription",
-                        "confirmation", "timer", "order_info"
+                        "name", "phone_number",
+                        "pickup", "pickup_or_delivery_time", 
+                        "confirmation", "order_info"
                     ]
                 }
             }
@@ -352,12 +345,12 @@ async def content_extraction(transcript, timer):
                 arguments["call_id"] = call_id
                 arguments["time_of_order"] = current_time
                 arguments["timer"] = timer
-                arguments['order_info']['timestamp'] = current_time
                 arguments['full_transcription'] = transcript #transcript with newlines
 
                 # Add formatted order_id to order_info + required info for the order
                 timestamp_seconds = int(datetime.datetime.now().timestamp())
                 arguments["order_info"]["order_id"] = f"ORD-{timestamp_seconds}-{call_id[-5:]}"
+                arguments['order_info']['timestamp'] = current_time
                 arguments['order_info']['call_id'] = call_id
                 arguments['order_info']['restaurant_id'] = RESTAURANT_ID
                 arguments['order_info']['customer_name'] = arguments['name']
@@ -416,7 +409,8 @@ async def process_transcript_and_send(transcript, timer):
             # Insert order record if confirmed
             if confirmation:
                 insert_order_record(connection, result["order_info"])
-                insert_order_items(connection, result["order_info"]["items"])
+                insert_order_items(connection, result["order_info"]["items"], 
+                                   result["order_info"]["order_id"])
 
             # Close database connection
             close_connection(connection)

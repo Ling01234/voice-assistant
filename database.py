@@ -80,7 +80,7 @@ def insert_order_record(connection, order_info):
         logger.error(f"Error inserting order record: {e}")
 
 
-def insert_order_items(connection, order_items):
+def insert_order_items(connection, order_items, order_id):
     """
     Inserts multiple order items into the Order_Items table.
 
@@ -99,7 +99,7 @@ def insert_order_items(connection, order_items):
         # Iterate through each order item and insert it
         for item in order_items:
             cursor.execute(query, (
-                item["order_id"],
+                order_id,
                 item["item_name"],
                 item["quantity"],
                 item["unit_price"],
