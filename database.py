@@ -100,7 +100,7 @@ def insert_order_items(connection, order_items, order_id):
         for item in order_items:
             cursor.execute(query, (
                 order_id,
-                item["item_name"],
+                item["name"],
                 item["quantity"],
                 item["unit_price"],
                 item.get("notes", "")  # Use an empty string if notes are not provided
