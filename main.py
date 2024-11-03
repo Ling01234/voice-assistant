@@ -345,9 +345,9 @@ async def content_extraction(transcript, timer):
 
                 # Enrich the response with generated values
                 arguments["call_id"] = call_id
-                arguments["time_of_order"] = current_time
+                arguments["timestamp"] = current_time
                 arguments["timer"] = timer
-                arguments['full_transcription'] = transcript #transcript with newlines
+                arguments['transcript'] = transcript #transcript with newlines
 
                 # Add formatted order_id to order_info + required info for the order
                 timestamp_seconds = int(datetime.datetime.now().timestamp())
@@ -404,9 +404,9 @@ async def process_transcript_and_send(transcript, timer):
             # Insert call record
             call_id = result["call_id"]
             restaurant_id = RESTAURANT_ID
-            transcript_text = result["full_transcription"]
+            transcript_text = result["transcript"]
             confirmation = result.get("confirmation", False)
-            timestamp = result["time_of_order"]
+            timestamp = result["timestamp"]
             insert_call_record(connection, call_id, restaurant_id, 
                                transcript_text, timestamp, confirmation)
 
