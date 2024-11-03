@@ -46,7 +46,7 @@ logger = logging.getLogger("voice-assistant-app")
 with open('menus/hanami/output_lunch.txt', 'r') as file:
     menu = file.read()
 
-RESTAURANT_ID = "rest-12345"  # Test restaurant ID
+RESTAURANT_ID = 1 # Test restaurant ID
 
 SYSTEM_MESSAGE = (
     f"You are a friendly receptionist at a restaurant taking orders. Below are the extracted content from the menu. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time.\n {menu}")
