@@ -173,3 +173,24 @@ def get_menu_file_path_by_restaurant_id(restaurant_id):
     finally:
         if connection and connection.is_connected():
             connection.close()
+
+def get_max_concurrent_calls_by_restaurant_id(restaurant_id):
+    connection = create_connection()
+    if not connection:
+        logger.error("Failed to connect to the database")
+        return None
+
+    try:
+        cursor = connection.cursor()
+        query = """
+        SELECT max_concurrent_calls FROM Restaurants WHERE restaurant_id = %s
+        """
+        cursor.execute(query, (restaurant_id,))
+        result = cursor.fetchone()
+        return result[0] if result else None
+    except Error as e:
+        logger.error(f"Error retrieving max_concurrent_calls for restaurant_id {restaurant_id}: {e}")
+        return None
+    finally:
+        if connection and connection.is_connected():
+            connection.close()

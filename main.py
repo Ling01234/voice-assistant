@@ -45,9 +45,6 @@ logging.basicConfig(
 
 logger = logging.getLogger("voice-assistant-app")
 
-# RESTAURANT_ID = 1 # Test restaurant ID
-MAX_CONCURRENT_CALLS = 1
-
 VOICE = 'alloy'
 LOG_EVENT_TYPES = [
     "response.content.done",
@@ -102,12 +99,18 @@ async def handle_incoming_call(event: dict):
     if not restaurant_id:
         raise HTTPException(status_code=404, detail="Restaurant not found for this number")
 
+    # max concurrent calls
+    max_concurrent_calls = get_max_concurrent_calls_by_restaurant_id(restaurant_id)
+    if not max_concurrent_calls:
+        raise HTTPException(status_code=404, detail="Max concurrent calls not found for this restaurant")
+
     logger.info(f"Restaurant number: {to_number}")
     logger.info(f"Restaurant id: {restaurant_id}")
+    logger.info(f"Max concurrent calls: {max_concurrent_calls}")
 
     # Check the current live call count for this restaurant
     live_calls = await get_live_calls(restaurant_id)
-    if live_calls >= MAX_CONCURRENT_CALLS:
+    if live_calls >= max_concurrent_calls:
         response = VoiceResponse()
         response.say("Sorry, all our lines are currently busy. Please try again later.")
         return HTMLResponse(content=str(response), media_type="application/xml")
