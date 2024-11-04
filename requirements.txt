@@ -1,8 +1,9 @@
 aiohttp==3.10.10
 fastapi==0.115.4
+mysql_connector_repackaged==0.3.1
 python-dotenv==1.0.1
+redis==5.0.4
 reportlab==4.2.0
-Requests==2.32.3
 twilio==9.3.6
 uvicorn==0.32.0
 websockets==13.1
