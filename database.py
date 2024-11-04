@@ -19,11 +19,12 @@ DB_CONFIG = {
     'password': os.getenv("DB_PASSWORD"),
     'port': os.getenv("DB_PORT", 3306)
 }
+VERBOSE = False
 
-def create_connection():
+def create_connection(verbose=False):
     try:
         connection = mysql.connector.connect(**DB_CONFIG)
-        if connection.is_connected():
+        if connection.is_connected() and VERBOSE:
             logger.info("Connected to the database")
         return connection
     except Error as e:
@@ -31,7 +32,7 @@ def create_connection():
         return None
 
 def close_connection(connection):
-    if connection.is_connected():
+    if connection.is_connected() and VERBOSE:
         connection.close()
         logger.info("Database connection closed")
 
@@ -46,7 +47,9 @@ def insert_call_record(connection, call_id, restaurant_id, transcript,
         cursor.execute(query, (call_id, restaurant_id, transcript, 
                                timestamp, confirmation))
         connection.commit()
-        logger.info("Call record inserted successfully.")
+        
+        if VERBOSE:
+            logger.info("Call record inserted successfully.")
     except Error as e:
         logger.error(f"Error inserting call record: {e}")
 
@@ -77,7 +80,9 @@ def insert_order_record(connection, order_info):
             order_info["timestamp"]
         ))
         connection.commit()
-        logger.info("Order record inserted successfully.")
+        
+        if VERBOSE:
+            logger.info("Order record inserted successfully.")
     except Error as e:
         logger.error(f"Error inserting order record: {e}")
 
@@ -109,7 +114,9 @@ def insert_order_items(connection, order_items, order_id):
             ))
         
         connection.commit()
-        logger.info("Order items inserted successfully.")
+        
+        if VERBOSE:
+            logger.info("Order items inserted successfully.")
     
     # error
     except Error as e:
