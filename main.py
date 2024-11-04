@@ -95,7 +95,7 @@ async def handle_incoming_call(event: dict):
 
     # Parse the decoded body as URL-encoded data
     parsed_data = parse_qs(decoded_body)
-    logging.info(f'Incoming call parsed data: {json.dumps(parsed_data, indent=2)}')
+    # logging.info(f'Incoming call parsed data: {json.dumps(parsed_data, indent=2)}')
 
     # Extract the 'To' number, handling list structure
     to_number = parsed_data.get("To", [None])[0]  # Use [0] to get the first element in the list
@@ -107,6 +107,9 @@ async def handle_incoming_call(event: dict):
     restaurant_id = get_restaurant_id_by_twilio_number(to_number)
     if not restaurant_id:
         raise HTTPException(status_code=404, detail="Restaurant not found for this number")
+
+    logger.info(f"Restaurant number: {to_number}")
+    logger.info(f"Restaurant id: {restaurant_id}")
 
     # Check the current live call count for this restaurant
     live_calls = await get_live_calls(restaurant_id)
