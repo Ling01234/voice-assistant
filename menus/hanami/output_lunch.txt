@@ -13,9 +13,9 @@ Beef
 Orange Beef $18
 Stir fried crispy beef with perfumed orange sauce
 Beef Broccoli $18
-Stir fried beef and broccoli with oriental souce
+Stir fried beef and broccoli with oriental sauce
 HuNan Beef $18
-Stir fried beef, HuNan syle
+Stir fried beef, HuNan style
 
 Shrimp
 Thai Shrimp $18
