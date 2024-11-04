@@ -201,7 +201,7 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
 
                         # Extract summary after call ends
                         logger.info("Call ended. Extracting customer details...")
-                        logger.info(f'Full transcript: {transcript}')
+                        # logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
                         await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id)
 
