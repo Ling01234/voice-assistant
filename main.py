@@ -122,7 +122,7 @@ async def handle_incoming_call(event: dict):
     response = VoiceResponse()
     response.say("Hi, how can I help you today?")
     connect = Connect()
-    connect.stream(url=f'wss://angelsbot.net/media-stream')
+    connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}')
     response.append(connect)
 
     return HTMLResponse(content=str(response), media_type="application/xml")
@@ -140,23 +140,8 @@ async def handle_incoming_message(request: Request):
     # Return the TwiML response as XML
     return HTMLResponse(content=str(response), media_type="application/xml")
 
-@app.websocket("/media-stream")
-async def handle_media_stream(websocket: WebSocket, verbose = False):
-    # Retrieve restaurant_id from the query parameters
-    # restaurant_id = websocket.query_params.get("restaurant_id")
-    # logger.info(f'restaurant_id in media stream: {restaurant_id}')
-    # if restaurant_id is None:
-    #     await websocket.close(code=1008, reason="Missing restaurant_id")
-    #     return
-
-    # # Convert restaurant_id to integer if needed
-    # try:
-    #     restaurant_id = int(restaurant_id)
-    # except ValueError:
-    #     await websocket.close(code=1008, reason="Invalid restaurant_id")
-    #     return
-    restaurant_id = 1
-    # Proceed with the rest of your WebSocket handling logic
+@app.websocket("/media-stream/{restaurant_id}")
+async def handle_media_stream(websocket: WebSocket, restaurant_id: int, verbose=False):
     logger.info(f"Connected to media stream for restaurant_id: {restaurant_id}")
     start_timer = time.time()
     await websocket.accept()
