@@ -339,7 +339,7 @@ async def content_extraction(transcript, timer, restaurant_id):
                     "For each item, also extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty. "
                     "All information must be extracted from the given transcript below. If any is missing, simply leave it empty. Do not make up any information. "
                     "Also, note that if there is any conflicting information (such as for names, phone number, etc.), prefer the information from the agent, rather than the user. "
-                    "Finally, determine if the order was placed, or if it was an mis-dial, or if the user hung up before finishing the order. Store this in a 'confirmation' key (as a boolean) if the order seems to have been placed by the user."
+                    "Finally, determine if the order was placed, or if it was an mis-dial, or if the user hung up before finishing and confirming the order. Store this in a 'confirmation' key (as a boolean) if the order seems to have been placed by the user."
                 )
             },
             {"role": "user", "content": transcript}
