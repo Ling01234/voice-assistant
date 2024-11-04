@@ -1,41 +1,35 @@
 LUNCH SPECIAL MENU
-HANAMI Ih30 . 15h00
-Tous nos spciaux sont servis avec soupe rouleau printemps riz et legumes
 All our specials are served with soup spring roll rice and vegetables
-Poulet Chicken
-Poulet ggneral tao General Tao Chicken $18
-Stivfied erspy chicken served witha sweet and spicy souce
-Poulet a la mangue Mango Chicken 18
-Sirfrted chicken with a vanety of vegetables and manga served with a spicy sauce
-Poulet et crevettes croustillants a la sauce mayonnaise 18
-Crispy Chicken and Shrimp with Mayonnaise saucs
-Crlzny chicken and shrimp served with aaweet sauce made of mayannaae
-Boeuf Beef
-Boeuf a lorange Orange Beef 98
-Bocuf croustilantaaute au wok avec une sauce parfume 8 forange
-Sriried enspy beef wieh pertumed orange sauce
-Boeuf au brocoli Beef Broccoli 98
-Bocuf et brocol sautes su wok avac une sauce oriental
-Surfed best and broceol with nena souce
-Boeuf HuNan HuNan Beef 98
-Boout saute su style NuNan
-Stirfnied beet HuNen syle
-Crevette Shrimp
-Crevettes thailandaises Thai Shrimp 18
-Grevettes seuteesauwekeusiye thalande
-Strfned shrimp Tholland style
-Crevette sel et poivre Salt and Pepper Crispy Shrimp 18
-Crovettes croustilantes legarement epicses ot salee2 auteer su wok avec piments et oignons
-Stirfnied crispy spicy and salty shnmmp with peppers and onions
-Eee Poivre noir Black Pepper Shrimp 98
-Nouilles et Riz Noodles and Rice
-Pad Thai au Pale et aux crevettes Chicken and Shrimp Pad Thai 18
-Nouilles ders thalandsise sautees au woke avec poulet.crevettes legumes arachides
-Stirfied nee noodles with chicken shrimp. vagetcbles peanuts
-998 coriander ime ond a shghty spicy sauce
-Nouilles aux fruits de mer Seafood Noodles $8
-Soupe ramen au boeuf Beef Soup Ramen 98
-Nouilles de riz sautees au boeuf Stirfried Beef Rice Noodle 98
-Riz saute style Yz thou Yangzhou Fried Rice 18
-eesti ested eas oatses lero eieciaee e
-Stinfried nce wth diced vegetables ham and seafood
+
+Chicken
+General Tao Chicken $18
+Stir fried crispy chicken served with a sweet and spicy sauce
+Mango Chicken $18
+Stir fried chicken with a variety of vegetables and mango, served with a spicy sauce
+Crispy Chicken and Shrimp with Mayonnaise sauce $18
+Crispy chicken and shrimp served with a sweet sauce made of mayonnaise
+
+Beef
+Orange Beef $18
+Stir fried crispy beef with perfumed orange sauce
+Beef Broccoli $18
+Stir fried beef and broccoli with oriental souce
+HuNan Beef $18
+Stir fried beef, HuNan syle
+
+Shrimp
+Thai Shrimp $18
+Stir fried shrimp Thailand style
+Salt and Pepper Crispy Shrimp $18
+Stir fried crispy spicy and salty shrimp with peppers and onions
+Black Pepper Shrimp $18
+Stir fried shrimps with black pepper
+
+Noodles and Rice
+Chicken and Shrimp Pad Thai $18
+Stir fried rice noodles with chicken, shrimp, vegetables, peanuts, eggs, coriander, lime and a slightly spicy sauce
+Seafood Noodles $18
+Beef Soup Ramen $18
+Stir fried Beef Ruce Noodle $18
+Yangzhou Fried Rice $18
+Stir fried rice with diced vegetables, ham and seafood
