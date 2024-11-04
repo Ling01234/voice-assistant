@@ -16,6 +16,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 from dotenv import load_dotenv
 import uvicorn
 import logging
+from redis_handler import *
 
 load_dotenv()
 
@@ -47,6 +48,7 @@ with open('menus/hanami/output_lunch.txt', 'r') as file:
     menu = file.read()
 
 RESTAURANT_ID = 1 # Test restaurant ID
+MAX_CONCURRENT_CALLS = 1
 
 SYSTEM_MESSAGE = (
     f"You are a friendly receptionist at a restaurant taking orders. Below are the extracted content from the menu. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time.\n {menu}")
@@ -79,12 +81,24 @@ async def index_page():
 
 @app.api_route("/incoming-call", methods=["GET", "POST"])
 async def handle_incoming_call(request: Request):
+    # Check current live call count for the restaurant
+    live_calls = await get_live_calls(RESTAURANT_ID)
+    if live_calls >= MAX_CONCURRENT_CALLS:
+        # Respond with a message if at the limit
+        response = VoiceResponse()
+        response.say("Sorry, all our lines are currently busy. Please try again later.")
+        return HTMLResponse(content=str(response), media_type="application/xml")
+
+    # Increment the live call count for the restaurant
+    await increment_live_calls(RESTAURANT_ID)
+
+    # Allow the call and respond with greeting
     response = VoiceResponse()
     response.say("Hi, how can I help you today?")
-    # response.say("Hi, you have called Hanami Sushi. How can we help?")
     connect = Connect()
     connect.stream(url=f'wss://angelsbot.net/media-stream')
     response.append(connect)
+
     return HTMLResponse(content=str(response), media_type="application/xml")
 
 @app.api_route("/incoming-message", methods=["GET", "POST"])
@@ -143,6 +157,9 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
                         logger.info(f"Incoming stream has started {stream_sid}")
 
                     elif data['event'] == 'stop':
+                        # Decrement live call count when the call stops
+                        await decrement_live_calls(RESTAURANT_ID)
+
                         # Extract summary after call ends
                         logger.info("Call ended. Extracting customer details...")
                         logger.info(f'Full transcript: {transcript}')
