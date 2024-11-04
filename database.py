@@ -21,7 +21,6 @@ DB_CONFIG = {
 }
 
 def create_connection():
-    logger.info("Starting connection to the database...")
     try:
         connection = mysql.connector.connect(**DB_CONFIG)
         if connection.is_connected():
@@ -115,3 +114,42 @@ def insert_order_items(connection, order_items, order_id):
     # error
     except Error as e:
         logger.error(f"Error inserting order items: {e}")
+
+def get_restaurant_id_by_twilio_number(twilio_number):
+    """
+    Retrieves the restaurant_id associated with a given Twilio phone number.
+
+    Parameters:
+        twilio_number (str): The Twilio phone number to look up.
+
+    Returns:
+        int: The restaurant_id if found, otherwise None.
+    """
+    connection = None
+    try:
+        # Create a database connection
+        connection = create_connection()
+        if not connection:
+            logger.error("Failed to connect to the database")
+            return None
+
+        # Query for the restaurant_id
+        cursor = connection.cursor()
+        query = """
+        SELECT restaurant_id FROM Restaurants WHERE twilio_number = %s
+        """
+        cursor.execute(query, (twilio_number,))
+        result = cursor.fetchone()
+
+        if result:
+            return result[0]
+        else:
+            logger.info(f"No restaurant found for Twilio number {twilio_number}")
+            return None
+    except Error as e:
+        logger.error(f"Error retrieving restaurant_id for Twilio number {twilio_number}: {e}")
+        return None
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
+            logger.info("Database connection closed")

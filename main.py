@@ -8,7 +8,8 @@ import json
 import base64
 import asyncio
 import websockets
-from fastapi import FastAPI, WebSocket, Request, Response
+from urllib.parse import parse_qs
+from fastapi import FastAPI, WebSocket, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
@@ -47,7 +48,7 @@ logger = logging.getLogger("voice-assistant-app")
 with open('menus/hanami/output_lunch.txt', 'r') as file:
     menu = file.read()
 
-RESTAURANT_ID = 1 # Test restaurant ID
+# RESTAURANT_ID = 1 # Test restaurant ID
 MAX_CONCURRENT_CALLS = 1
 
 SYSTEM_MESSAGE = (
@@ -80,23 +81,47 @@ async def index_page():
     return "<h1>Server is up and running. </h1>"
 
 @app.api_route("/incoming-call", methods=["GET", "POST"])
-async def handle_incoming_call(request: Request):
-    # Check current live call count for the restaurant
-    live_calls = await get_live_calls(RESTAURANT_ID)
+async def handle_incoming_call(event: dict):
+    # Extract the body from the forwarded Lambda event
+    body = event.get("body", "")
+    is_base64_encoded = event.get("isBase64Encoded", False)
+
+    # Decode the Base64-encoded body if necessary
+    if is_base64_encoded:
+        decoded_bytes = base64.b64decode(body)
+        decoded_body = decoded_bytes.decode('utf-8')
+    else:
+        decoded_body = body
+
+    # Parse the decoded body as URL-encoded data
+    parsed_data = parse_qs(decoded_body)
+
+    # Extract the 'To' number, handling list structure
+    to_number = parsed_data.get("To", [None])[0]  # Use [0] to get the first element in the list
+
+    if not to_number:
+        raise HTTPException(status_code=400, detail="Missing 'To' parameter in the request")
+
+    # Look up the restaurant_id based on the Twilio number
+    restaurant_id = get_restaurant_id_by_twilio_number(to_number)
+    if not restaurant_id:
+        raise HTTPException(status_code=404, detail="Restaurant not found for this number")
+
+    # Check the current live call count for this restaurant
+    live_calls = await get_live_calls(restaurant_id)
     if live_calls >= MAX_CONCURRENT_CALLS:
-        # Respond with a message if at the limit
         response = VoiceResponse()
         response.say("Sorry, all our lines are currently busy. Please try again later.")
         return HTMLResponse(content=str(response), media_type="application/xml")
 
-    # Increment the live call count for the restaurant
-    await increment_live_calls(RESTAURANT_ID)
+    # Increment the live call count for this restaurant
+    await increment_live_calls(restaurant_id)
 
-    # Allow the call and respond with greeting
+    # Allow the call and respond with a greeting
     response = VoiceResponse()
     response.say("Hi, how can I help you today?")
     connect = Connect()
-    connect.stream(url=f'wss://angelsbot.net/media-stream')
+    connect.stream(url=f'wss://angelsbot.net/media-stream?restaurant_id={restaurant_id}')
     response.append(connect)
 
     return HTMLResponse(content=str(response), media_type="application/xml")
@@ -116,7 +141,21 @@ async def handle_incoming_message(request: Request):
 
 @app.websocket("/media-stream")
 async def handle_media_stream(websocket: WebSocket, verbose = False):
-    logger.info("Client connected")
+    # Retrieve restaurant_id from the query parameters
+    restaurant_id = websocket.query_params.get("restaurant_id")
+    if restaurant_id is None:
+        await websocket.close(code=1008, reason="Missing restaurant_id")
+        return
+
+    # Convert restaurant_id to integer if needed
+    try:
+        restaurant_id = int(restaurant_id)
+    except ValueError:
+        await websocket.close(code=1008, reason="Invalid restaurant_id")
+        return
+
+    # Proceed with the rest of your WebSocket handling logic
+    logger.info(f"Connected to media stream for restaurant_id: {restaurant_id}")
     start_timer = time.time()
     await websocket.accept()
 
@@ -158,13 +197,13 @@ async def handle_media_stream(websocket: WebSocket, verbose = False):
 
                     elif data['event'] == 'stop':
                         # Decrement live call count when the call stops
-                        await decrement_live_calls(RESTAURANT_ID)
+                        await decrement_live_calls(restaurant_id)
 
                         # Extract summary after call ends
                         logger.info("Call ended. Extracting customer details...")
                         logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
-                        await process_transcript_and_send(transcript, end_timer - start_timer)
+                        await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id)
 
             except WebSocketDisconnect:
                 logger.info("Client disconnected.")
@@ -269,7 +308,7 @@ async def send_session_update(openai_ws, verbose=False):
     await openai_ws.send(json.dumps(session_update))
 
 
-async def content_extraction(transcript, timer):
+async def content_extraction(transcript, timer, restaurant_id):
     """Make a ChatGPT API call and enforce schema using JSON."""
     logger.info("Starting ChatGPT API call...")
 
@@ -371,7 +410,7 @@ async def content_extraction(transcript, timer):
                 arguments["order_info"]["order_id"] = f"ORD-{timestamp_seconds}-{call_id[-5:]}"
                 arguments['order_info']['timestamp'] = current_time
                 arguments['order_info']['call_id'] = call_id
-                arguments['order_info']['restaurant_id'] = RESTAURANT_ID
+                arguments['order_info']['restaurant_id'] = restaurant_id
                 arguments['order_info']['customer_name'] = arguments['name']
                 arguments['order_info']['phone_number'] = arguments['phone_number']
                 arguments['order_info']['pickup'] = arguments['pickup']
@@ -406,11 +445,11 @@ async def send_to_webhook(payload):
         except Exception as error:
             logger.error(f"Error sending data to webhook: {error}")
 
-async def process_transcript_and_send(transcript, timer):
+async def process_transcript_and_send(transcript, timer, restaurant_id):
     """Process the transcript and send the extracted data to the webhook."""
     try:
         # Make the ChatGPT completion call
-        result = await content_extraction(transcript, timer)
+        result = await content_extraction(transcript, timer, restaurant_id)
 
         # Check if the response contains the expected data
         if result:
@@ -420,7 +459,7 @@ async def process_transcript_and_send(transcript, timer):
 
             # Insert call record
             call_id = result["call_id"]
-            restaurant_id = RESTAURANT_ID
+            restaurant_id = restaurant_id
             transcript_text = result["transcript"]
             confirmation = result.get("confirmation", False)
             timestamp = result["timestamp"]
