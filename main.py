@@ -1,4 +1,5 @@
 import os
+from s3_handler import fetch_file_from_s3
 from database import *
 import time
 import uuid
@@ -44,15 +45,8 @@ logging.basicConfig(
 
 logger = logging.getLogger("voice-assistant-app")
 
-# Read the menu
-with open('menus/hanami/output_lunch.txt', 'r') as file:
-    menu = file.read()
-
 # RESTAURANT_ID = 1 # Test restaurant ID
 MAX_CONCURRENT_CALLS = 1
-
-SYSTEM_MESSAGE = (
-    f"You are a friendly receptionist at a restaurant taking orders. Below are the extracted content from the menu. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time.\n {menu}")
 
 VOICE = 'alloy'
 LOG_EVENT_TYPES = [
@@ -146,6 +140,20 @@ async def handle_incoming_message(request: Request):
 @app.websocket("/media-stream/{restaurant_id}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, verbose=False):
     logger.info(f"Connected to media stream for restaurant_id: {restaurant_id}")
+
+    # menu path 
+    menu_file_path = get_menu_file_path_by_restaurant_id(restaurant_id)
+    if not menu_file_path:
+        raise HTTPException(status_code=404, detail="Menu file path not found for this restaurant")
+
+    # Fetch the menu content from S3 using the new s3_handler
+    try:
+        menu_content = fetch_file_from_s3(menu_file_path)
+        system_message = f"You are a friendly receptionist at a restaurant taking orders. Below are the extracted content from the menu. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time.\n {menu_content}"
+    except Exception as e:
+        logger.error(f"Failed to retrieve menu: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve menu from S3")
+
     start_timer = time.time()
     await websocket.accept()
 
@@ -156,7 +164,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int, verbose=
             "OpenAI-Beta": "realtime=v1"
         }
     ) as openai_ws:
-        await send_session_update(openai_ws)
+        await send_session_update(openai_ws, system_message)
 
         # # Add initial greeting to OpenAI for first response
         # initial_greeting = {
@@ -275,7 +283,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int, verbose=
 
         await asyncio.gather(receive_from_twilio(), send_to_twilio())
 
-async def send_session_update(openai_ws, verbose=False):
+async def send_session_update(openai_ws, system_message, verbose=False):
     session_update = {
         "type": "session.update",
         "session": {
@@ -283,7 +291,7 @@ async def send_session_update(openai_ws, verbose=False):
             "input_audio_format": "g711_ulaw",
             "output_audio_format": "g711_ulaw",
             "voice": VOICE,
-            "instructions": SYSTEM_MESSAGE,
+            "instructions": system_message,
             "modalities": ["text", "audio"],
             "temperature": 0.8,
             "input_audio_transcription": {
