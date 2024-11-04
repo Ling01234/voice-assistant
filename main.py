@@ -384,7 +384,7 @@ async def content_extraction(transcript, timer, restaurant_id):
             async with session.post(url, headers=headers, json=payload) as response:
                 logger.info(f"ChatGPT API response status: {response.status}")
                 data = await response.json()
-                logger.info(f"Full ChatGPT API response: {json.dumps(data, indent=2)}")
+                # logger.info(f"Full ChatGPT API response: {json.dumps(data, indent=2)}")
 
                 # Parse the function call arguments
                 arguments = json.loads(data["choices"][0]["message"]["function_call"]["arguments"])
@@ -440,10 +440,11 @@ async def process_transcript_and_send(transcript, timer, restaurant_id):
     try:
         # Make the ChatGPT completion call
         result = await content_extraction(transcript, timer, restaurant_id)
+        logger.info(f'Full result: {json.dumps(result, indent=2)}')
+        logger.info(f'\n {'-' * 50} \n') # logger separator
 
         # Check if the response contains the expected data
         if result:
-
             # Database connection setup
             connection = create_connection()
 
