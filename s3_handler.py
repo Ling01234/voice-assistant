@@ -56,3 +56,8 @@ def fetch_file_from_s3(object_key):
     except Exception as e:
         logger.error(f"An error occurred while fetching file from S3: {e}")
         raise
+
+if __name__ == "__main__":
+    object_key = "restaurants/test/output_lunch.txt"
+    content = fetch_file_from_s3(object_key)
+    print(content)

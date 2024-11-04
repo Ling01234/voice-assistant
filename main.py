@@ -142,7 +142,8 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int, verbose=
     logger.info(f"Connected to media stream for restaurant_id: {restaurant_id}")
 
     # menu path 
-    menu_file_path = get_menu_file_path_by_restaurant_id(restaurant_id)
+    menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id))
+    logger.info(f'Menu file path: {menu_file_path}')
     if not menu_file_path:
         raise HTTPException(status_code=404, detail="Menu file path not found for this restaurant")
 
