@@ -453,7 +453,6 @@ async def process_transcript_and_send(transcript, timer, restaurant_id):
         # Make the ChatGPT completion call
         result = await content_extraction(transcript, timer, restaurant_id)
         logger.info(f'Full result: {json.dumps(result, indent=2)}')
-        logger.info(f'\n {'-' * 50} \n') # logger separator
 
         # Check if the response contains the expected data
         if result:
@@ -517,6 +516,7 @@ async def send_order_to_lambda(order_info):
                             pdf_file.write(pdf_content)
 
                         logger.info("PDF receipt successfully received and saved as 'receipt.pdf'.")
+                        logger.info(f'\n{"-" * 75}\n')  # Logger separator
                     else:
                         logger.warning(f"Unexpected content type: {content_type}")
                 
