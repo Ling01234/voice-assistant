@@ -106,7 +106,7 @@ async def handle_incoming_call(event: dict):
 
     logger.info(f"Restaurant number: {to_number}")
     logger.info(f"Restaurant id: {restaurant_id}")
-    logger.info(f"Max concurrent calls: {max_concurrent_calls}")
+    # logger.info(f"Max concurrent calls: {max_concurrent_calls}")
 
     # Check the current live call count for this restaurant
     live_calls = await get_live_calls(restaurant_id)
@@ -312,7 +312,7 @@ async def send_session_update(openai_ws, system_message, verbose=False):
 
 async def content_extraction(transcript, timer, restaurant_id):
     """Make a ChatGPT API call and enforce schema using JSON."""
-    logger.info("Starting ChatGPT API call...")
+    logger.info("Starting Content Extraction...")
 
     # Generate unique call ID
     call_id = str(uuid.uuid4())
@@ -394,7 +394,7 @@ async def content_extraction(transcript, timer, restaurant_id):
     async with aiohttp.ClientSession() as session:
         try:
             async with session.post(url, headers=headers, json=payload) as response:
-                logger.info(f"ChatGPT API response status: {response.status}")
+                # logger.info(f"ChatGPT API response status: {response.status}")
                 data = await response.json()
                 # logger.info(f"Full ChatGPT API response: {json.dumps(data, indent=2)}")
 
@@ -515,7 +515,7 @@ async def send_order_to_lambda(order_info):
                         with open("receipt.pdf", "wb") as pdf_file:
                             pdf_file.write(pdf_content)
 
-                        logger.info("PDF receipt successfully received and saved as 'receipt.pdf'.")
+                        # logger.info("PDF receipt successfully received and saved as 'receipt.pdf'.")
                         logger.info(f'\n{"-" * 75}\n')  # Logger separator
                     else:
                         logger.warning(f"Unexpected content type: {content_type}")
