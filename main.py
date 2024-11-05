@@ -596,9 +596,16 @@ async def format_client_message(order_info, twilio_numer):
     
     # Format the order items
     items = order_info["items"]
-    items_details = "\n".join(
-        [f"- {item['quantity']}x {item['name']} @ ${item['unit_price']:.2f} each" for item in items]
-    )
+    item_details = ''
+    for item in items:
+        item_details += f"- {item['quantity']} x {item['name']} @ ${item['unit_price']:.2f} each"
+        
+        # check for notes
+        notes = item.get("notes", "")
+        if notes:
+            item_details += f" ({notes})"
+        
+        item_details += "\n"
     
     # Determine pickup or delivery text
     order_type = "Pickup" if pickup else "Delivery"
@@ -611,7 +618,7 @@ async def format_client_message(order_info, twilio_numer):
         f"Order Time: {timestamp}\n\n"
         f"Items:\n{items_details}\n\n"
         f"{order_type} Time: {pickup_or_delivery_time}\n\n"
-        f"We'll notify you when your order is ready. For any questions, call us at {twilio_numer}.\n"
+        f"For any questions, call us at {twilio_numer}.\n"
         f"Thank you for choosing {restaurant_name}!"
     )
     
