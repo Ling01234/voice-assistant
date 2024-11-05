@@ -18,6 +18,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
 from twilio.twiml.messaging_response import MessagingResponse
+from twilio.rest import Client
 from dotenv import load_dotenv
 import uvicorn
 import logging
@@ -28,6 +29,8 @@ load_dotenv()
 ### ENVIRONMENT VARIABLES ###
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 
 
 ### LOGGING CONFIG ###
@@ -92,14 +95,14 @@ async def handle_incoming_call(event: dict):
     # logging.info(f'Incoming call parsed data: {json.dumps(parsed_data, indent=2)}')
 
     # Extract the To and From number, handling list structure
-    to_number = parsed_data.get("To", [None])[0]  # Use [0] to get the first element in the list
-    from_number = parsed_data.get("From", [None])[0]  # Use [0] to get the first element in the list
+    twilio_number = parsed_data.get("To", [None])[0]  # Use [0] to get the first element in the list
+    client_number = parsed_data.get("From", [None])[0]  # Use [0] to get the first element in the list
 
-    if not to_number:
+    if not twilio_number:
         raise HTTPException(status_code=400, detail="Missing 'To' parameter in the request")
 
     # Look up the restaurant_id based on the Twilio number
-    restaurant_id = get_restaurant_id_by_twilio_number(to_number)
+    restaurant_id = get_restaurant_id_by_twilio_number(twilio_number)
     if not restaurant_id:
         raise HTTPException(status_code=404, detail="Restaurant not found for this number")
 
@@ -108,7 +111,7 @@ async def handle_incoming_call(event: dict):
     if not max_concurrent_calls:
         raise HTTPException(status_code=404, detail="Max concurrent calls not found for this restaurant")
 
-    logger.info(f"Restaurant number: {to_number}")
+    logger.info(f"Restaurant number: {twilio_number}")
     logger.info(f"Restaurant id: {restaurant_id}")
     # logger.info(f"Max concurrent calls: {max_concurrent_calls}")
 
@@ -126,7 +129,7 @@ async def handle_incoming_call(event: dict):
     response = VoiceResponse()
     response.say("Hi, how can I help you today?")
     connect = Connect()
-    connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{from_number}')
+    connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}')
     response.append(connect)
 
     return HTMLResponse(content=str(response), media_type="application/xml")
@@ -144,10 +147,10 @@ async def handle_incoming_message(request: Request):
     # Return the TwiML response as XML
     return HTMLResponse(content=str(response), media_type="application/xml")
 
-@app.websocket("/media-stream/{restaurant_id}/{from_number}")
+@app.websocket("/media-stream/{restaurant_id}/{client_number}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
-                              from_number: str, verbose=False):
-    logger.info(f"{from_number} connected to media stream for restaurant_id: {restaurant_id}")
+                              client_number: str, verbose=False):
+    logger.info(f"{client_number} connected to media stream for restaurant_id: {restaurant_id}")
 
     # menu path 
     menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id))
@@ -158,7 +161,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
     # Fetch the menu content from S3 using the new s3_handler
     try:
         menu_content = fetch_file_from_s3(menu_file_path)
-        system_message = f"You are a friendly receptionist at a restaurant taking orders. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time. Note that this is the number they called from, so you should ask if this is the correct number they would like to be reached at: {from_number[2:]}. Below are the extracted content from the menu. Be very careful and accurate when providing information from the menu.\n {menu_content}"
+        system_message = f"You are a friendly receptionist at a restaurant taking orders. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time. Note that this is the number they called from, so you should ask if this is the correct number they would like to be reached at: {client_number[2:]}. Below are the extracted content from the menu. Be very careful and accurate when providing information from the menu.\n {menu_content}"
     except Exception as e:
         logger.error(f"Failed to retrieve menu: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve menu from S3")
@@ -211,7 +214,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         # logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
                         await process_transcript_and_send(transcript, end_timer - start_timer,
-                                                          restaurant_id, menu_content)
+                                                          restaurant_id, menu_content, client_number)
 
             except WebSocketDisconnect:
                 logger.info("Client disconnected.")
@@ -458,7 +461,8 @@ async def send_to_webhook(payload):
         except Exception as error:
             logger.error(f"Error sending data to webhook: {error}")
 
-async def process_transcript_and_send(transcript, timer, restaurant_id, menu_content):
+async def process_transcript_and_send(transcript, timer, 
+                                      restaurant_id, menu_content, client_number):
     """Process the transcript and send the extracted data to the webhook."""
     try:
         # Make the ChatGPT completion call
@@ -518,6 +522,11 @@ async def process_transcript_and_send(transcript, timer, restaurant_id, menu_con
                 logger.error(f"Error sending order to printer: {e}")
             
 
+            # Send message to customer
+            twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
+            client_message = await format_client_message(order_info)
+            message = await send_sms_from_twilio(client_number, twilio_number, client_message)
+            
             # # Send order info to Lambda or other processes if needed
             # await send_order_to_lambda(result["order_info"])
 
@@ -565,6 +574,48 @@ async def send_order_to_lambda(order_info):
 
         except aiohttp.ClientError as e:
             logger.error(f"Error sending order to Lambda: {e}")
+
+async def send_sms_from_twilio(to, from_, body):
+    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    message = client.messages.create(
+        to=to,          # Recipient's phone number
+        from_=from_,    # Your Twilio phone number
+        body=body       # Message content
+    )
+    return message
+
+async def format_client_message(order_info):
+    # Extract basic order details
+    order_id = order_info["order_id"]
+    timestamp = order_info["timestamp"]
+    restaurant_name = order_info["restaurant_name"]
+    customer_name = order_info["customer_name"]
+    phone_number = order_info["phone_number"]
+    pickup = order_info["pickup"]
+    pickup_or_delivery_time = order_info["pickup_or_delivery_time"]
+    
+    # Format the order items
+    items = order_info["order_info"]["items"]
+    items_details = "\n".join(
+        [f"- {item['quantity']}x {item['name']} @ ${item['unit_price']:.2f} each" for item in items]
+    )
+    
+    # Determine pickup or delivery text
+    order_type = "Pickup" if pickup else "Delivery"
+    
+    # Format the final message
+    message = (
+        f"Hello {customer_name},\n\n"
+        f"Thank you for your order from {restaurant_name}!\n"
+        f"Order ID: {order_id}\n"
+        f"Order Time: {timestamp}\n\n"
+        f"Items:\n{items_details}\n\n"
+        f"{order_type} Time: {pickup_or_delivery_time}\n\n"
+        f"We'll notify you when your order is ready. For any questions, call us at {phone_number}.\n"
+        f"Thank you for choosing {restaurant_name}!"
+    )
+    
+    return message
 
 # run app
 if __name__ == "__main__":
