@@ -490,7 +490,7 @@ async def process_transcript_and_send(transcript, timer, restaurant_id):
                                           'pdf',
                                           call_id)
 
-            logger.info(f'Payload: {json.dumps(payload, indent=2)}')
+            # logger.info(f'Payload: {json.dumps(payload, indent=2)}')
 
             # retrieve printer topic id
             printer_topic_id = get_printer_topic_id_by_restaurant_id(str(restaurant_id))

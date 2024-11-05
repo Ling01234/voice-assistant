@@ -91,7 +91,7 @@ def connect_mqtt():
     client.on_connect = on_connect
     client.username_pw_set(username,password)
     client.connect(broker_address,port,qos)
-    logger.info(f'Connecting to MQTT broker at {broker_address}:{port}')
+    # logger.info(f'Connecting to MQTT broker at {broker_address}:{port}')
     return client
 
 #publsh the manager to printer
