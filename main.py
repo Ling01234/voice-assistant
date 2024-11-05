@@ -210,7 +210,8 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         logger.info("Call ended. Extracting customer details...")
                         # logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
-                        await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id)
+                        await process_transcript_and_send(transcript, end_timer - start_timer,
+                                                          restaurant_id, menu_content)
 
             except WebSocketDisconnect:
                 logger.info("Client disconnected.")
@@ -315,7 +316,7 @@ async def send_session_update(openai_ws, system_message, verbose=False):
     await openai_ws.send(json.dumps(session_update))
 
 
-async def content_extraction(transcript, timer, restaurant_id):
+async def content_extraction(transcript, timer, restaurant_id, menu_content):
     """Make a ChatGPT API call and enforce schema using JSON."""
     logger.info("Starting Content Extraction...")
 
@@ -334,8 +335,8 @@ async def content_extraction(transcript, timer, restaurant_id):
 
     # Request payload with enforced JSON schema
     payload = {
-        "model": "gpt-3.5-turbo",
-        # "model": "gpt-4o-2024-08-06",
+        # "model": "gpt-3.5-turbo",
+        "model": "gpt-4o-2024-08-06",
         "messages": [
             {
                 "role": "system",
@@ -348,6 +349,7 @@ async def content_extraction(transcript, timer, restaurant_id):
                     "All information must be extracted from the given transcript below. If any is missing, simply leave it empty. Do not make up any information. "
                     "Also, note that if there is any conflicting information (such as for names, phone number, etc.), prefer the information from the agent, rather than the user. "
                     "Finally, determine if the order was placed, or if it was an mis-dial, or if the user hung up before finishing and confirming the order. Store this in a 'confirmation' key (as a boolean) if the order seems to have been placed by the user."
+                    f"For reference, the menu content is provided below:\n{menu_content}"
                 )
             },
             {"role": "user", "content": transcript}
@@ -456,11 +458,11 @@ async def send_to_webhook(payload):
         except Exception as error:
             logger.error(f"Error sending data to webhook: {error}")
 
-async def process_transcript_and_send(transcript, timer, restaurant_id):
+async def process_transcript_and_send(transcript, timer, restaurant_id, menu_content):
     """Process the transcript and send the extracted data to the webhook."""
     try:
         # Make the ChatGPT completion call
-        result = await content_extraction(transcript, timer, restaurant_id)
+        result = await content_extraction(transcript, timer, restaurant_id, menu_content)
         logger.info(f'Full result: {json.dumps(result, indent=2)}')
 
         # Check if the response contains the expected data
