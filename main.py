@@ -213,8 +213,12 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         logger.info("Call ended. Extracting customer details...")
                         # logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
-                        await process_transcript_and_send(transcript, end_timer - start_timer,
-                                                          restaurant_id, menu_content, client_number)
+                        order_info = await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id, menu_content, client_number)
+
+                        # Send message to customer
+                        twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
+                        client_message = await format_client_message(order_info)
+                        message = await send_sms_from_twilio(client_number, twilio_number, client_message)
 
             except WebSocketDisconnect:
                 logger.info("Client disconnected.")
@@ -520,12 +524,8 @@ async def process_transcript_and_send(transcript, timer,
             
             except Exception as e:
                 logger.error(f"Error sending order to printer: {e}")
-            
 
-            # Send message to customer
-            twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
-            client_message = await format_client_message(order_info)
-            message = await send_sms_from_twilio(client_number, twilio_number, client_message)
+            return order_info
             
             # # Send order info to Lambda or other processes if needed
             # await send_order_to_lambda(result["order_info"])
