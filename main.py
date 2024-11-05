@@ -303,7 +303,7 @@ async def send_session_update(openai_ws, system_message, verbose=False):
             "voice": VOICE,
             "instructions": system_message,
             "modalities": ["text", "audio"],
-            "temperature": 0.8,
+            "temperature": 0.2,
             "input_audio_transcription": {
             "model": "whisper-1"
         }
