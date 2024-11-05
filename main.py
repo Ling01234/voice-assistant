@@ -493,26 +493,29 @@ async def process_transcript_and_send(transcript, timer, restaurant_id, menu_con
                 logger.info(f'{'-' * 25} ORDER NOT CONFIRMED {"-" * 25}')
                 return  # Stop if the order was not confirmed
 
-            
-            # generate pdf receipt and payloaf
-            pdf_base64, receipt_width, receipt_height = generate_pdf_receipt(order_info)
-            payload = create_json_payload(document_base64=pdf_base64, 
-                                          document_type='pdf',
-                                          ticket_id=call_id,
-                                          paper_width_mm=receipt_width,
-                                          paper_height_mm=receipt_height,)
+            try:
+                # generate pdf receipt and payload
+                pdf_base64, receipt_width, receipt_height = generate_pdf_receipt(order_info)
+                payload = create_json_payload(document_base64=pdf_base64, 
+                                            document_type='pdf',
+                                            ticket_id=call_id,
+                                            paper_width_mm=receipt_width,
+                                            paper_height_mm=receipt_height,)
 
-            # logger.info(f'Payload: {json.dumps(payload, indent=2)}')
+                # logger.info(f'Payload: {json.dumps(payload, indent=2)}')
 
-            # retrieve printer topic id
-            printer_topic_id = get_printer_topic_id_by_restaurant_id(str(restaurant_id))
-            if not printer_topic_id:
-                raise HTTPException(status_code=404, detail="Printer topic id not found for this restaurant")
+                # retrieve printer topic id
+                printer_topic_id = get_printer_topic_id_by_restaurant_id(str(restaurant_id))
+                if not printer_topic_id:
+                    raise HTTPException(status_code=404, detail="Printer topic id not found for this restaurant")
+                
+                # publish the order to the printer
+                mqtt_client = connect_mqtt()
+                mqtt_client.publish(printer_topic_id, payload)
+                mqtt_client.disconnect()
             
-            # publish the order to the printer
-            mqtt_client = connect_mqtt()
-            mqtt_client.publish(printer_topic_id, payload)
-            mqtt_client.disconnect()
+            except Exception as e:
+                logger.error(f"Error sending order to printer: {e}")
             
 
             # # Send order info to Lambda or other processes if needed
