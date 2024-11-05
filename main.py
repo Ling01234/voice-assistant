@@ -582,6 +582,7 @@ async def send_sms_from_twilio(to, from_, body):
         from_=from_,    # Your Twilio phone number
         body=body       # Message content
     )
+    logger.info(f'Sending message to {to}')
     return message
 
 async def format_client_message(order_info):
@@ -595,7 +596,7 @@ async def format_client_message(order_info):
     pickup_or_delivery_time = order_info["pickup_or_delivery_time"]
     
     # Format the order items
-    items = order_info["order_info"]["items"]
+    items = order_info["items"]
     items_details = "\n".join(
         [f"- {item['quantity']}x {item['name']} @ ${item['unit_price']:.2f} each" for item in items]
     )
