@@ -3,6 +3,10 @@ import json
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 import os
+import logging
+
+# Set up the logger
+logger = logging.getLogger("voice-assistant-app")
 
 # Load environment variables from .env file
 load_dotenv()
@@ -77,17 +81,16 @@ def create_json_payload(
 
 # connected the MQTT SERVER
 def connect_mqtt():
-    print(f'Starting connection...')
     def on_connect(client, userdata, flags, rc):
         if rc==0:
-            print("Connected to MQTT Broker!")
+            logger.info("Connected to MQTT Broker!")
         else:
-            print("Failed to connect to MQTT,Return code %d\n ",rc)
+            logger.info("Failed to connect to MQTT,Return code %d\n ",rc)
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=client_id)
     client.on_connect = on_connect
     client.username_pw_set(username,password)
     client.connect(broker_address,port,qos)
-    print(f'Connection Established...')
+    logger.info(f'Connecting to MQTT broker at {broker_address}:{port}')
     return client
 
 #publsh the manager to printer
@@ -99,8 +102,7 @@ if __name__ == "__main__":
     data_base64 = pdf_to_base64(file_path)
     payload = create_json_payload(data_base64, 'pdf', '1/1 00-0C-29-78-71-BF 2022-12-01 17:13:13.876sdadaadasdsadassda')
 
-    print()
-    print(f'payload: {json.dumps(payload, indent=2)}')
+    logger.info(f'\npayload: {json.dumps(payload, indent=2)}')
     client.publish(topic, payload)
     client.disconnect()
 
