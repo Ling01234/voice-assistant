@@ -158,7 +158,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
     # Fetch the menu content from S3 using the new s3_handler
     try:
         menu_content = fetch_file_from_s3(menu_file_path)
-        system_message = f"You are a friendly receptionist at a restaurant taking orders. Below are the extracted content from the menu. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time. Note that this is the number they called from, so you should ask if this is the correct number they would like to be reached at: {from_number[2:]}\n {menu_content}"
+        system_message = f"You are a friendly receptionist at a restaurant taking orders. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time. Note that this is the number they called from, so you should ask if this is the correct number they would like to be reached at: {from_number[2:]}. Below are the extracted content from the menu. Be very careful and accurate when providing information from the menu.\n {menu_content}"
     except Exception as e:
         logger.error(f"Failed to retrieve menu: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve menu from S3")
