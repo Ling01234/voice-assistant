@@ -170,6 +170,7 @@ def generate_pdf_receipt(event):
     pdf.drawCentredString(receipt_width / 2, y, "Thank you for your order!")
     y -= 10 * mm
     pdf.drawCentredString(receipt_width / 2, y, "Visit us again!")
+    y -= 10 * mm
 
     # Finalize PDF and save to buffer
     pdf.showPage()
