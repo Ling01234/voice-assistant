@@ -495,10 +495,12 @@ async def process_transcript_and_send(transcript, timer, restaurant_id, menu_con
 
             
             # generate pdf receipt and payloaf
-            pdf_base64 = generate_pdf_receipt(order_info)
-            payload = create_json_payload(pdf_base64, 
-                                          'pdf',
-                                          call_id)
+            pdf_base64, receipt_width, receipt_height = generate_pdf_receipt(order_info)
+            payload = create_json_payload(document_base64=pdf_base64, 
+                                          document_type='pdf',
+                                          ticket_id=call_id,
+                                          paper_width_mm=receipt_width,
+                                          paper_height_mm=receipt_height,)
 
             # logger.info(f'Payload: {json.dumps(payload, indent=2)}')
 

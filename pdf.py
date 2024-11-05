@@ -179,7 +179,7 @@ def generate_pdf_receipt(event):
 
     encoded_pdf = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-    return encoded_pdf # in base 64
+    return encoded_pdf, receipt_width, receipt_height # in base 64
 
 if __name__ == "__main__":
     # Example usage with sample order info
