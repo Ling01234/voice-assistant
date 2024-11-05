@@ -1,4 +1,5 @@
 import os
+import pytz
 from printer import *
 from pdf import *
 from s3_handler import fetch_file_from_s3
@@ -320,7 +321,8 @@ async def content_extraction(transcript, timer, restaurant_id):
 
     # Generate unique call ID
     call_id = str(uuid.uuid4())
-    current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    montreal_tz = pytz.timezone('America/Montreal')
+    current_time = datetime.datetime.now(montreal_tz).strftime('%Y-%m-%d %H:%M:%S')
 
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
