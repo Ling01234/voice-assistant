@@ -1,4 +1,6 @@
 import os
+from printer import *
+from pdf import *
 from s3_handler import fetch_file_from_s3
 from database import *
 import time
@@ -465,14 +467,15 @@ async def process_transcript_and_send(transcript, timer, restaurant_id):
             transcript_text = result["transcript"]
             confirmation = result.get("confirmation", False)
             timestamp = result["timestamp"]
+            order_info = result["order_info"]
             insert_call_record(connection, call_id, restaurant_id, 
                                transcript_text, timestamp, confirmation)
 
             # Insert order record if confirmed
             if confirmation:
-                insert_order_record(connection, result["order_info"])
-                insert_order_items(connection, result["order_info"]["items"], 
-                                   result["order_info"]["order_id"])
+                insert_order_record(connection, order_info)
+                insert_order_items(connection, order_info["items"], 
+                                   order_info["order_id"])
 
             # Close database connection
             close_connection(connection)
@@ -480,8 +483,28 @@ async def process_transcript_and_send(transcript, timer, restaurant_id):
             if not confirmation:
                 return  # Stop if the order was not confirmed
 
-            # Send order info to Lambda or other processes if needed
-            await send_order_to_lambda(result["order_info"])
+            
+            # generate pdf receipt and payloaf
+            pdf_base64 = generate_pdf_receipt(order_info)
+            payload = create_json_payload(pdf_base64, 
+                                          'pdf',
+                                          call_id)
+
+            logger.info(f'Payload: {json.dumps(payload, indent=2)}')
+
+            # retrieve printer topic id
+            printer_topic_id = get_printer_topic_id_by_restaurant_id(str(restaurant_id))
+            if not printer_topic_id:
+                raise HTTPException(status_code=404, detail="Printer topic id not found for this restaurant")
+            
+            # publish the order to the printer
+            mqtt_client = connect_mqtt()
+            mqtt_client.publish(printer_topic_id, payload)
+            mqtt_client.disconnect()
+            
+
+            # # Send order info to Lambda or other processes if needed
+            # await send_order_to_lambda(result["order_info"])
 
     except asyncio.TimeoutError:
         logger.warning("Timed out while processing the transcript.")

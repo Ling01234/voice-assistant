@@ -3,21 +3,31 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 import io
 from textwrap import wrap
+import json
+import base64
+
+TAX_RATE = 0.15
 
 def generate_pdf_receipt(event):
     """Generates a professional receipt PDF formatted for an 80mm thermal printer."""
-    max_line_width = 25  # Adjust the number of characters that fit in one line
-    same_item_spacing = 4 * mm  # Adjust the spacing between wrapped lines
-    between_item_spacing = 8 * mm  # Adjust the spacing between items
+    max_line_width = 25  # Adjust the number of characters per line
+    same_item_spacing = 4 * mm  # Spacing between wrapped lines
+    between_item_spacing = 8 * mm  # Spacing between items
 
-    # Extract order info from the event
+    # Extract order info
     customer_name = event.get("customer_name", "N/A")
     order_id = event.get("order_id", "N/A")
     timestamp = event.get("timestamp", "N/A")
     items = event.get("items", [])
-    subtotal = event.get("subtotal", 0.0)
-    tax = event.get("tax", 0.0)
-    total = event.get("total", 0.0)
+
+    # subtotal
+    subtotal = 0
+    for item in items:
+        item_price = item['quantity'] * item['unit_price']
+        subtotal += item_price
+
+    tax = round(subtotal * TAX_RATE, 2)
+    total = round(subtotal + tax, 2) 
 
     # PDF page size for 80mm thermal printer
     receipt_width = 80 * mm  # 80mm width
@@ -50,7 +60,7 @@ def generate_pdf_receipt(event):
     # Calculate the final receipt height dynamically
     header_height = 40 * mm  # Space for title and order details
     total_section_height = 4 * between_item_spacing  # Subtotal, tax, and total section
-    footer_height = 30 * mm  # Footer space for thank you message
+    footer_height = 35 * mm  # Footer space for thank you message
     margin = 15 * mm  # Extra margin to avoid clipping
 
     receipt_height = (
@@ -158,30 +168,29 @@ def generate_pdf_receipt(event):
     pdf.save()
     buffer.seek(0)
 
-    # Save the buffer content to a local PDF file for testing
-    with open("receipt.pdf", "wb") as f:
-        f.write(buffer.read())
+    encoded_pdf = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-    print("PDF receipt generated: receipt.pdf")
+    return encoded_pdf # in base 64
 
-# Example usage with sample order info
-order_info = {
-    "order_id": "ORD-1698001234-12345",
-    "customer_name": "Jane Doe",
-    "timestamp": "22-10-2024T08:06:03",
-    "items": [
-        {"name": "General Tao Chicken", "quantity": 1, "unit_price": 18.00, "notes": "Extra spicy"},
-        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
-        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
-        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": "scipy"},
-        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
-        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
-        {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
-    ],
-    "subtotal": 22.99,
-    "tax": 3.45,
-    "total": 26.44
-}
+if __name__ == "__main__":
+    # Example usage with sample order info
+    order_info = {
+        "order_id": "ORD-1698001234-12345",
+        "customer_name": "Jane Doe",
+        "timestamp": "22-10-2024T08:06:03",
+        "items": [
+            {"name": "General Tao Chicken", "quantity": 1, "unit_price": 18.00, "notes": "Extra spicy"},
+            {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
+            {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
+            {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": "scipy"},
+            {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
+            {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
+            {"name": "Wonton Soup", "quantity": 2, "unit_price": 4.99, "notes": ""},
+        ],
+        "subtotal": 22.99,
+        "tax": 3.45,
+        "total": 26.44
+    }
 
-# Run the function with the example event
-generate_pdf_receipt(order_info)
+    # Run the function with the example event
+    generate_pdf_receipt(order_info)

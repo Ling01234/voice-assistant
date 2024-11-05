@@ -60,7 +60,7 @@ def generate_pdf_receipt(event):
     # Calculate the final receipt height dynamically
     header_height = 40 * mm  # Space for title and order details
     total_section_height = 4 * between_item_spacing  # Subtotal, tax, and total section
-    footer_height = 30 * mm  # Footer space for thank you message
+    footer_height = 35 * mm  # Footer space for thank you message
     margin = 15 * mm  # Extra margin to avoid clipping
 
     receipt_height = (
