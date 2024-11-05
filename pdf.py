@@ -22,6 +22,7 @@ def generate_pdf_receipt(event):
     timestamp = event.get("timestamp", "N/A")
     items = event.get("items", [])
     restaurant_name = event.get("restaurant_name", "N/A")
+    pickup_or_delivery_time = event.get("pickup_or_delivery_time", "N/A")
 
     # subtotal
     subtotal = 0
@@ -61,7 +62,7 @@ def generate_pdf_receipt(event):
     item_section_height -= between_item_spacing  # Avoid adding spacing after the last item
 
     # Calculate the final receipt height dynamically
-    header_height = 50 * mm  # Space for title and order details
+    header_height = 60 * mm  # Space for title and order details
     total_section_height = 4 * between_item_spacing  # Subtotal, tax, and total section
     footer_height = 40 * mm  # Footer space for thank you message
     margin = 15 * mm  # Extra margin to avoid clipping
@@ -97,7 +98,9 @@ def generate_pdf_receipt(event):
     y -= 5 * mm
     pdf.drawString(5 * mm, y, f"Phone Number: {phone_number}")
     y -= 5 * mm
-    pdf.drawString(5 * mm, y, f"Date: {timestamp}")
+    pdf.drawString(5 * mm, y, f"Order Time: {timestamp}")
+    y -= 5 * mm
+    pdf.drawString(5 * mm, y, f"Ready By: {pickup_or_delivery_time}")
 
     # Items section
     y -= 15 * mm
