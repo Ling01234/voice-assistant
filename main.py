@@ -217,7 +217,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
                         # Send message to customer
                         twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
-                        client_message = await format_client_message(order_info)
+                        client_message = await format_client_message(order_info, twilio_number)
                         message = await send_sms_from_twilio(client_number, twilio_number, client_message)
 
             except WebSocketDisconnect:
@@ -354,7 +354,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content):
                     "Also, structure the order information in JSON format with items."
                     "For each item, also extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty. "
                     "All information must be extracted from the given transcript below. If any is missing, simply leave it empty. Do not make up any information. "
-                    "Also, note that if there is any conflicting information (such as for names, phone number, etc.), prefer the information from the agent, rather than the user. "
+                    "Also, note that the transcript is a real time conversation between a customer and the AI, so extract the information as accurately as possible. "
                     "Finally, determine if the order was placed, or if it was an mis-dial, or if the user hung up before finishing and confirming the order. Store this in a 'confirmation' key (as a boolean) if the order seems to have been placed by the user."
                     f"For reference, the menu content is provided below:\n{menu_content}"
                 )
@@ -585,13 +585,12 @@ async def send_sms_from_twilio(to, from_, body):
     logger.info(f'Sending message to {to}')
     return message
 
-async def format_client_message(order_info):
-    # Extract basic order details
+async def format_client_message(order_info, twilio_numer):
+    # Extract order details
     order_id = order_info["order_id"]
     timestamp = order_info["timestamp"]
     restaurant_name = order_info["restaurant_name"]
     customer_name = order_info["customer_name"]
-    phone_number = order_info["phone_number"]
     pickup = order_info["pickup"]
     pickup_or_delivery_time = order_info["pickup_or_delivery_time"]
     
@@ -612,7 +611,7 @@ async def format_client_message(order_info):
         f"Order Time: {timestamp}\n\n"
         f"Items:\n{items_details}\n\n"
         f"{order_type} Time: {pickup_or_delivery_time}\n\n"
-        f"We'll notify you when your order is ready. For any questions, call us at {phone_number}.\n"
+        f"We'll notify you when your order is ready. For any questions, call us at {twilio_numer}.\n"
         f"Thank you for choosing {restaurant_name}!"
     )
     
