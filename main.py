@@ -488,6 +488,7 @@ async def process_transcript_and_send(transcript, timer, restaurant_id):
             close_connection(connection)
             
             if not confirmation:
+                logger.info(f'{'-' * 25} ORDER NOT CONFIRMED {"-" * 25}')
                 return  # Stop if the order was not confirmed
 
             
