@@ -90,8 +90,9 @@ async def handle_incoming_call(event: dict):
     parsed_data = parse_qs(decoded_body)
     # logging.info(f'Incoming call parsed data: {json.dumps(parsed_data, indent=2)}')
 
-    # Extract the 'To' number, handling list structure
+    # Extract the To and From number, handling list structure
     to_number = parsed_data.get("To", [None])[0]  # Use [0] to get the first element in the list
+    from_number = parsed_data.get("From", [None])[0]  # Use [0] to get the first element in the list
 
     if not to_number:
         raise HTTPException(status_code=400, detail="Missing 'To' parameter in the request")
@@ -124,7 +125,7 @@ async def handle_incoming_call(event: dict):
     response = VoiceResponse()
     response.say("Hi, how can I help you today?")
     connect = Connect()
-    connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}')
+    connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{from_number}')
     response.append(connect)
 
     return HTMLResponse(content=str(response), media_type="application/xml")
@@ -142,9 +143,10 @@ async def handle_incoming_message(request: Request):
     # Return the TwiML response as XML
     return HTMLResponse(content=str(response), media_type="application/xml")
 
-@app.websocket("/media-stream/{restaurant_id}")
-async def handle_media_stream(websocket: WebSocket, restaurant_id: int, verbose=False):
-    logger.info(f"Connected to media stream for restaurant_id: {restaurant_id}")
+@app.websocket("/media-stream/{restaurant_id}/{from_number}")
+async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
+                              from_number: str, verbose=False):
+    logger.info(f"{from_number} connected to media stream for restaurant_id: {restaurant_id}")
 
     # menu path 
     menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id))
@@ -155,7 +157,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int, verbose=
     # Fetch the menu content from S3 using the new s3_handler
     try:
         menu_content = fetch_file_from_s3(menu_file_path)
-        system_message = f"You are a friendly receptionist at a restaurant taking orders. Below are the extracted content from the menu. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time.\n {menu_content}"
+        system_message = f"You are a friendly receptionist at a restaurant taking orders. Below are the extracted content from the menu. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time. Note that this is the number they called from, so you should ask if this is the correct number they would like to be reached at: {from_number[2:]}\n {menu_content}"
     except Exception as e:
         logger.error(f"Failed to retrieve menu: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve menu from S3")

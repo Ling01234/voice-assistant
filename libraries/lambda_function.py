@@ -1,4 +1,5 @@
 from reportlab.lib.pagesizes import letter
+import datetime
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 import io
@@ -7,6 +8,7 @@ import json
 import base64
 
 TAX_RATE = 0.15
+UTC = 5
 
 def generate_pdf_receipt(event):
     """Generates a professional receipt PDF formatted for an 80mm thermal printer."""
@@ -19,6 +21,15 @@ def generate_pdf_receipt(event):
     order_id = event.get("order_id", "N/A")
     timestamp = event.get("timestamp", "N/A")
     items = event.get("items", [])
+
+    # Convert timestamp from UTC to UTC-4
+    if timestamp != "N/A":
+        # Assuming timestamp is in the format "YYYY-MM-DD HH:MM:SS"
+        utc_time = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+        # Adjust the timezone to UTC-4
+        local_time = utc_time - datetime.timedelta(hours=UTC)
+        # Format back to the same format without timezone info
+        timestamp = local_time.strftime("%Y-%m-%d %H:%M:%S")
 
     # subtotal
     subtotal = 0
