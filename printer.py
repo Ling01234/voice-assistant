@@ -4,6 +4,7 @@ import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 import os
 import logging
+import uuid
 
 # Set up the logger
 logger = logging.getLogger("voice-assistant-app")
@@ -96,11 +97,13 @@ def connect_mqtt():
 #publsh the manager to printer
 if __name__ == "__main__":
     topic = os.getenv("MQTT_TEST_TOPIC_ID")
+    ticket_id = str(uuid.uuid4())
     client = connect_mqtt()
 
     file_path = 'receipt.pdf'
     data_base64 = pdf_to_base64(file_path)
-    payload = create_json_payload(data_base64, 'pdf', '1/1 00-0C-29-78-71-BF 2022-12-01 17:13:13.876sdadaadasdsadassda')
+    payload = create_json_payload(data_base64, 'pdf', 
+                                  ticket_id=ticket_id)
 
     logger.info(f'\npayload: {json.dumps(payload, indent=2)}')
     client.publish(topic, payload)
