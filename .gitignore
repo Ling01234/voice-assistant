@@ -16,6 +16,7 @@ libraries/packages.zip
 *packages*
 /*.txt
 menus/
+!requirements.txt
 
 
 
