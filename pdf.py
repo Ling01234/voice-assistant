@@ -17,9 +17,11 @@ def generate_pdf_receipt(event):
 
     # Extract order info
     customer_name = event.get("customer_name", "N/A")
+    phone_number = event.get("phone_number", "N/A")
     order_id = event.get("order_id", "N/A")
     timestamp = event.get("timestamp", "N/A")
     items = event.get("items", [])
+    restaurant_name = event.get("restaurant_name", "N/A")
 
     # subtotal
     subtotal = 0
@@ -59,9 +61,9 @@ def generate_pdf_receipt(event):
     item_section_height -= between_item_spacing  # Avoid adding spacing after the last item
 
     # Calculate the final receipt height dynamically
-    header_height = 40 * mm  # Space for title and order details
+    header_height = 50 * mm  # Space for title and order details
     total_section_height = 4 * between_item_spacing  # Subtotal, tax, and total section
-    footer_height = 35 * mm  # Footer space for thank you message
+    footer_height = 40 * mm  # Footer space for thank you message
     margin = 15 * mm  # Extra margin to avoid clipping
 
     receipt_height = (
@@ -78,7 +80,7 @@ def generate_pdf_receipt(event):
 
     # Set up fonts
     pdf.setFont("Courier-Bold", 12)
-    pdf.drawCentredString(receipt_width / 2, receipt_height - 10 * mm, "Restaurant Receipt")
+    pdf.drawCentredString(receipt_width / 2, receipt_height - 10 * mm, f"{restaurant_name} Receipt")
 
     pdf.setFont("Courier", 10)
 
@@ -92,6 +94,8 @@ def generate_pdf_receipt(event):
     pdf.drawString(5 * mm, y, f"Order ID: {order_id}")
     y -= 5 * mm
     pdf.drawString(5 * mm, y, f"Customer: {customer_name}")
+    y -= 5 * mm
+    pdf.drawString(5 * mm, y, f"Phone Number: {phone_number}")
     y -= 5 * mm
     pdf.drawString(5 * mm, y, f"Date: {timestamp}")
 

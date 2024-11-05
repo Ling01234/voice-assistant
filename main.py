@@ -319,6 +319,8 @@ async def content_extraction(transcript, timer, restaurant_id):
     """Make a ChatGPT API call and enforce schema using JSON."""
     logger.info("Starting Content Extraction...")
 
+    restaurant_name = get_restaurant_name_by_restaurant_id(restaurant_id)
+    
     # Generate unique call ID
     call_id = str(uuid.uuid4())
     montreal_tz = pytz.timezone('America/Montreal')
@@ -419,6 +421,7 @@ async def content_extraction(transcript, timer, restaurant_id):
                 arguments['order_info']['timestamp'] = current_time
                 arguments['order_info']['call_id'] = call_id
                 arguments['order_info']['restaurant_id'] = restaurant_id
+                arguments['order_info']['restaurant_name'] = restaurant_name
                 arguments['order_info']['customer_name'] = arguments['name']
                 arguments['order_info']['phone_number'] = arguments['phone_number']
                 arguments['order_info']['pickup'] = arguments['pickup']
