@@ -37,15 +37,15 @@ def close_connection(connection):
         logger.info("Database connection closed")
 
 def insert_call_record(connection, call_id, restaurant_id, transcript, 
-                       timestamp, confirmation):
+                       timestamp, timer, confirmation):
     try:
         cursor = connection.cursor()
         query = """
-        INSERT INTO Calls (call_id, restaurant_id, transcript, timestamp, confirmation)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO Calls (call_id, restaurant_id, transcript, timestamp, timer, confirmation)
+        VALUES (%s, %s, %s, %s, %s, %s)
         """
         cursor.execute(query, (call_id, restaurant_id, transcript, 
-                               timestamp, confirmation))
+                               timestamp, timer, confirmation))
         connection.commit()
         
         if VERBOSE:

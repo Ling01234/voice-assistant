@@ -486,7 +486,7 @@ async def process_transcript_and_send(transcript, timer,
             timestamp = result["timestamp"]
             order_info = result["order_info"]
             insert_call_record(connection, call_id, restaurant_id, 
-                               transcript_text, timestamp, confirmation)
+                               transcript_text, timestamp, timer, confirmation)
 
             # Insert order record if confirmed
             if confirmation:
