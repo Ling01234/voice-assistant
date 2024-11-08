@@ -52,6 +52,7 @@ logging.basicConfig(
 logger = logging.getLogger("voice-assistant-app")
 
 VOICE = 'alloy'
+MODEL_TEMPERATURE = 0.7 # must be [0.6, 1.2]
 LOG_EVENT_TYPES = [
     "response.content.done",
     "rate_limits.updated",
@@ -308,16 +309,21 @@ async def send_session_update(openai_ws, system_message, verbose=False):
     session_update = {
         "type": "session.update",
         "session": {
-            "turn_detection": {"type": "server_vad"},
+            "turn_detection": {
+                    "type": "server_vad",
+                    "threshold": 0.6, # higher threshold will required louder audio to activate model
+                    "silence_duration_ms": 750 # duration of silence to detect speech stop (ms)
+                },
             "input_audio_format": "g711_ulaw",
             "output_audio_format": "g711_ulaw",
             "voice": VOICE,
             "instructions": system_message,
             "modalities": ["text", "audio"],
-            "temperature": 0.8,
+            "temperature": MODEL_TEMPERATURE,
             "input_audio_transcription": {
-            "model": "whisper-1"
-        }
+                "model": "whisper-1"
+            },
+            "max_response_output_tokens": 1000 # max num of tokens for a single assistant response (including tool calls)
         }
     }
     
