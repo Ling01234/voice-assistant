@@ -149,7 +149,7 @@ async def handle_incoming_message(request: Request):
 
 @app.websocket("/media-stream/{restaurant_id}/{client_number}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
-                              client_number: str, verbose=False):
+                              client_number: str, verbose=False, transcript_verbose = False):
     logger.info(f"{client_number} connected to media stream for restaurant_id: {restaurant_id}")
 
     # menu path 
@@ -245,7 +245,9 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                     if response['type'] == 'conversation.item.input_audio_transcription.completed':
                         user_message = response.get('transcript', '').strip()
                         transcript += f"User: {user_message}\n\n"
-                        logger.info(f"User: {user_message}\n")
+                        
+                        if transcript_verbose:
+                            logger.info(f"User: {user_message}\n")
 
                     if response['type'] == 'response.done':
                         outputs = response.get('response', {}).get('output', [{}])
@@ -257,7 +259,9 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             agent_message = 'Agent message not found'
                             
                         transcript += f"Agent: {agent_message}\n\n"
-                        logger.info(f"Agent: {agent_message}\n")
+                        
+                        if transcript_verbose:
+                            logger.info(f"Agent: {agent_message}\n")
 
                     if response['type'] == 'session.updated' and verbose:
                         logger.info(f'Session updated successfully: {response}')
