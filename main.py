@@ -162,7 +162,16 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
     # Fetch the menu content from S3 using the new s3_handler
     try:
         menu_content = fetch_file_from_s3(menu_file_path)
-        system_message = f"You are a friendly receptionist at a restaurant taking orders. At the end, you should repeat the order to the client and confirm their name, number, total price before tax, whether the order is going to be picked up or delivered and the corresponding time. Note that this is the number they called from, so you should ask if this is the correct number they would like to be reached at: {client_number[2:]}. Below are the extracted content from the menu. Be very careful and accurate when providing information from the menu.\n {menu_content}"
+        system_message = f"""
+        You are a friendly receptionist at a restaurant taking orders. During the call, if you do not understand the client's question or message or if the message seems to have been cutoff, you should politely ask them to repeat themselves. At the end, you should repeat the order to the client and confirm the following:
+        1. The client's name
+        2. The client's phone number (Note that this is the number they called from, so you should ask if this is the correct number they would like to be reached at: {client_number[2:]})
+        3. The total price before tax
+        4. Whether the order is going to be picked up or delivered
+        5. The corresponding time
+        
+        If you need to ask the client for information, do not ask too many at a time. Stick to asking 1 to 2 pieces of information per request. Below are the extracted content from the menu. Be very careful and accurate when providing information from the menu.\n {menu_content}
+        """
     except Exception as e:
         logger.error(f"Failed to retrieve menu: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve menu from S3")
@@ -311,8 +320,8 @@ async def send_session_update(openai_ws, system_message, verbose=False):
         "session": {
             "turn_detection": {
                     "type": "server_vad",
-                    "threshold": 0.6, # higher threshold will required louder audio to activate model
-                    "silence_duration_ms": 750 # duration of silence to detect speech stop (ms)
+                    "threshold": 0.7, # higher threshold will required louder audio to activate model
+                    "silence_duration_ms": 500 # duration of silence to detect speech stop (ms)
                 },
             "input_audio_format": "g711_ulaw",
             "output_audio_format": "g711_ulaw",
