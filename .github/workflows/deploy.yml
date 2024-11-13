@@ -55,4 +55,4 @@ jobs:
             USER: ${{ secrets.EC2_USER }}
             PORT: ${{ secrets.EC2_PORT || '22' }}
         run: |
-            ssh -o StrictHostKeyChecking=no -p $PORT $USER@$HOST "cd /home/ubuntu/voice-assistant && git pull origin main"
+            ssh -o StrictHostKeyChecking=no -p $PORT $USER@$HOST "cd /home/ubuntu/voice-assistant && git pull origin main && sudo systemctl restart voice-assistant.service"
