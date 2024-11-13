@@ -386,7 +386,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content):
                 2. phone number
                 3. order type (pickup or delivery)
                 4. pickup or delivery time
-                5. order information (items, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty.
+                5. order information (items, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it as an empty string.
                 
                 All information must be extracted from the given transcript below. If any is missing, simply leave it empty and make sure to not make up any information.Also, note that the transcript is a real-time conversation between a customer and the AI, so extract the information as accurately as possible. Be especially careful with the name of the customer. 
                 
