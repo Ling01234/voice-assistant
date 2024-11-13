@@ -296,7 +296,8 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             "event": "clear"
                         }
                         await websocket.send_json(clear_event)
-                        logger.info("Cancelling AI speech from the server")
+                        if verbose: 
+                            logger.info("Cancelling AI speech from the server")
 
                         # Send interrupt message to OpenAI
                         interrupt_message = {"type": "response.cancel"}
