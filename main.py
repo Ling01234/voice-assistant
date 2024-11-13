@@ -170,7 +170,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         4. Whether the order is going to be picked up or delivered
         5. The corresponding time
         
-        Keep these notes in mind during the conversation with the client:
+        You should also keep the following points in mind during the conversation with the client:
         1. If you need to ask the client for information, do not ask too many at a time. Stick to asking 1 to 2 pieces of information per request.
         2. If a client has already confirmed some of the information above, you do not need to repeat it back to them again.
         3. You should behave like an experienced waiter, and ask meaningful follow up questions when necessary. For example, if a client orders a steak, you should ask them about the desired level of doneness. If a client orders a coffee, you should ask them if they want any milk or sugar. 
@@ -380,17 +380,21 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content):
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "Extract the following details from the transcript: "
-                    "name, phone number, order type (pickup or delivery) "
-                    "and the pickup or delivery time. "
-                    "Also, structure the order information in JSON format with items."
-                    "For each item, also extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty. "
-                    "All information must be extracted from the given transcript below. If any is missing, simply leave it empty. Do not make up any information. "
-                    "Also, note that the transcript is a real time conversation between a customer and the AI, so extract the information as accurately as possible. "
-                    "Finally, determine if the order was placed, or if it was an mis-dial, or if the user hung up before finishing and confirming the order. Store this in a 'confirmation' key (as a boolean) if the order seems to have been placed by the user."
-                    f"For reference, the menu content is provided below:\n{menu_content}"
-                )
+                "content": f"""
+                Extract the following details from the transcript below in a structured JSON:
+                1. name
+                2. phone number
+                3. order type (pickup or delivery)
+                4. pickup or delivery time
+                5. order information (items, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it empty.
+                
+                All information must be extracted from the given transcript below. If any is missing, simply leave it empty and make sure to not make up any information.Also, note that the transcript is a real-time conversation between a customer and the AI, so extract the information as accurately as possible. Be especially careful with the name of the customer. 
+                
+                Finally, determine if the order was placed, or if it was a mis-dial, or if the user hung up before finishing and confirming the order. Store this in a 'confirmation' key (as a boolean) if the order seems to have been placed by the user.
+                
+                For reference, the menu content is provided below:
+                {menu_content}
+                """
             },
             {"role": "user", "content": transcript}
         ],
@@ -405,7 +409,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content):
                         "phone_number": {"type": "string"},
                         "pickup": {"type": "boolean"},
                         "pickup_or_delivery_time": {"type": "string"},
-                        "confirmation": {"type": "boolean"},  # Added confirmation key
+                        "confirmation": {"type": "boolean"},
                         "order_info": {
                             "type": "object",
                             "properties": {
