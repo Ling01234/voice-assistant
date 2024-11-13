@@ -180,6 +180,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         """
     except Exception as e:
         logger.error(f"Failed to retrieve menu: {e}")
+        logger.info(f'\n{"-" * 75}\n')  # Logger separator
         raise HTTPException(status_code=500, detail="Failed to retrieve menu from S3")
 
     start_timer = time.time()
@@ -243,6 +244,8 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
             except Exception as e:
                 logger.error(f"Error in receive_from_twilio: {e}")
+                logger.info(f'\n{"-" * 75}\n')  # Logger separator
+                
 
             finally:
                 # Ensure OpenAI WebSocket is closed if still open
@@ -314,9 +317,13 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             await websocket.send_json(audio_delta)
                         except Exception as e:
                             logger.error(f"Error processing audio data: {e}")
+                            logger.info(f'\n{"-" * 75}\n')  # Logger separator
+                            
 
             except Exception as e:
                 logger.error(f"Error in send_to_twilio: {e}")
+                logger.info(f'\n{"-" * 75}\n')  # Logger separator
+                
 
         await asyncio.gather(receive_from_twilio(), send_to_twilio())
 
@@ -465,6 +472,8 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content):
 
         except Exception as error:
             logger.error(f"Error making ChatGPT completion call: {error}")
+            logger.info(f'\n{"-" * 75}\n')  # Logger separator
+            
             raise
 
 
@@ -489,6 +498,8 @@ async def send_to_webhook(payload):
 
         except Exception as error:
             logger.error(f"Error sending data to webhook: {error}")
+            logger.info(f'\n{"-" * 75}\n')  # Logger separator
+            
 
 async def process_transcript_and_send(transcript, timer, 
                                       restaurant_id, menu_content, client_number):
@@ -496,10 +507,11 @@ async def process_transcript_and_send(transcript, timer,
     try:
         # Make the ChatGPT completion call
         result = await content_extraction(transcript, timer, restaurant_id, menu_content)
-        logger.info(f'Full result: {json.dumps(result, indent=2)}')
 
         # Check if the response contains the expected data
         if result:
+            logger.info(f'Full result for call id ({result['call_id']}): {json.dumps(result, indent=2)}')
+
             # Database connection setup
             connection = create_connection()
 
@@ -523,7 +535,7 @@ async def process_transcript_and_send(transcript, timer,
             close_connection(connection)
             
             if not confirmation:
-                logger.info(f'{'-' * 25} ORDER NOT CONFIRMED {"-" * 25}')
+                logger.info(f'{'-' * 25} CALL ID ({call_id}) NOT CONFIRMED {"-" * 25}')
                 return  # Stop if the order was not confirmed
 
             try:
@@ -548,7 +560,9 @@ async def process_transcript_and_send(transcript, timer,
                 mqtt_client.disconnect()
             
             except Exception as e:
-                logger.error(f"Error sending order to printer: {e}")
+                logger.error(f"Error sending order for call id ({call_id}) to printer: {e}")
+                logger.info(f'\n{"-" * 75}\n')  # Logger separator
+
 
             return order_info
             
@@ -559,6 +573,8 @@ async def process_transcript_and_send(transcript, timer,
         logger.warning("Timed out while processing the transcript.")
     except Exception as error:
         logger.error(f"Error in process_transcript_and_send: {error}")
+        logger.info(f'\n{"-" * 75}\n')  # Logger separator
+        
 
 
 async def send_order_to_lambda(order_info):
@@ -599,6 +615,8 @@ async def send_order_to_lambda(order_info):
 
         except aiohttp.ClientError as e:
             logger.error(f"Error sending order to Lambda: {e}")
+            logger.info(f'\n{"-" * 75}\n')  # Logger separator
+            
 
 async def send_sms_from_twilio(to, from_, body):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
