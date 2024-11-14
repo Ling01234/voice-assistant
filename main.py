@@ -64,6 +64,8 @@ LOG_EVENT_TYPES = [
     "session.created",
     "response.text.done",
     "conversation.item.input_audio_transcription.completed",
+    "function_call",
+    "response.function_call_arguments.done"
 ]
 
 app = FastAPI()
@@ -99,6 +101,7 @@ async def handle_incoming_call(event: dict):
     # Extract the To and From number, handling list structure
     twilio_number = parsed_data.get("To", [None])[0]  # Use [0] to get the first element in the list
     client_number = parsed_data.get("From", [None])[0]  # Use [0] to get the first element in the list
+    call_sid = parsed_data.get("CallSid", [None])[0]  # Use [0] to get the first element in the list
 
     if not twilio_number:
         raise HTTPException(status_code=400, detail="Missing 'To' parameter in the request")
@@ -131,7 +134,7 @@ async def handle_incoming_call(event: dict):
     response = VoiceResponse()
     response.say(INITIAL_MESSAGE)
     connect = Connect()
-    connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}')
+    connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
     response.append(connect)
 
     return HTMLResponse(content=str(response), media_type="application/xml")
@@ -149,12 +152,13 @@ async def handle_incoming_message(request: Request):
     # Return the TwiML response as XML
     return HTMLResponse(content=str(response), media_type="application/xml")
 
-@app.websocket("/media-stream/{restaurant_id}/{client_number}")
+@app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
-                              client_number: str, verbose=False, transcript_verbose = False):
+                              client_number: str, call_sid: str, 
+                              verbose=False, transcript_verbose=False):
     logger.info(f"{client_number} connected to media stream for restaurant_id: {restaurant_id}")
 
-    # menu path 
+    # Menu path 
     menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id))
     logger.info(f'Menu file path: {menu_file_path}')
     if not menu_file_path:
@@ -170,6 +174,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         2. The client's phone number (Note that this is the number they called from: {client_number[2:5]}-{client_number[5:8]}-{client_number[8:]}. You should ask if this is the correct number they would like to be reached at.)
         4. Whether the order is going to be picked up or delivered. If it's for delivery, you need to ask for the delivery address.
         5. The corresponding time for pickup or delivery. If the client responds with "as soon as possible", "right now", "how long will it take?" or similar questions, you should tell them that it will take approximately {wait_time} minutes.
+        6. At the end, you should ask the question and see if there is anything else you can do for them, or if that's it. If the client says that's it, you should thank them for their order and tell them to have a great day.
         
         You should also keep the following points in mind during the conversation with the client:
         1. Keep the conversation more generic, and do not go into specifics unless the client asks for specific information. This will make the conversation flow better. 
@@ -232,7 +237,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         # Send message to customer
                         twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
                         client_message = await format_client_message(order_info, twilio_number)
-                        message = await send_sms_from_twilio(client_number, twilio_number, client_message)
+                        await send_sms_from_twilio(client_number, twilio_number, client_message)
 
             except WebSocketDisconnect:
                 logger.info("Client disconnected.")
@@ -316,14 +321,34 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         except Exception as e:
                             logger.error(f"Error processing audio data: {e}")
                             logger.info(f'\n{"-" * 75}\n')  # Logger separator
-                            
+
+                    if response['type'] == 'conversation.item.created' and response['item']['type'] == 'function_call':
+                        if response['item']['name'] == 'end_twilio_call':
+                            await end_twilio_call(call_sid)
+                            await decrement_live_calls(restaurant_id)
+                            end_timer = time.time()
+                            order_info = await process_transcript_and_send(
+                                transcript, end_timer - start_timer, restaurant_id, menu_content, client_number
+                            )
+
+                            twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
+                            client_message = await format_client_message(order_info, twilio_number)
+                            await send_sms_from_twilio(client_number, twilio_number, client_message)
+
+                            if openai_ws.open:
+                                await openai_ws.close()
+                            return
 
             except Exception as e:
                 logger.error(f"Error in send_to_twilio: {e}")
-                logger.info(f'\n{"-" * 75}\n')  # Logger separator
-                
+            
+            finally:
+                # Ensure OpenAI WebSocket is closed if still open
+                if openai_ws.open:
+                    await openai_ws.close()
 
         await asyncio.gather(receive_from_twilio(), send_to_twilio())
+
 
 async def send_session_update(openai_ws, system_message, verbose=False):
     session_update = {
@@ -343,14 +368,27 @@ async def send_session_update(openai_ws, system_message, verbose=False):
             "input_audio_transcription": {
                 "model": "whisper-1"
             },
-            "max_response_output_tokens": 1000 # max num of tokens for a single assistant response (including tool calls)
+            "max_response_output_tokens": 1000, # max num of tokens for a single assistant response (including tool calls)
+            "tools": [
+                {
+                    "name": "end_twilio_call",
+                    "description": "Ends the call if the conversation has concluded.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "call_sid": {"type": "string"}
+                        }
+                    }
+                }
+            ]
         }
     }
-    
+
     if verbose:
         logger.info(f'Sending session update: {json.dumps(session_update)}')
 
     await openai_ws.send(json.dumps(session_update))
+
 
 
 async def content_extraction(transcript, timer, restaurant_id, menu_content):
@@ -692,6 +730,11 @@ async def format_client_message(order_info, twilio_numer):
     )
     
     return message
+
+async def end_twilio_call(call_sid):
+    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    call = client.calls(call_sid).update(status='completed')
+    logger.info(f'Call ended by AI: {call.status}')
 
 # run app
 if __name__ == "__main__":
