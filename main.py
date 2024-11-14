@@ -53,6 +53,7 @@ logger = logging.getLogger("voice-assistant-app")
 
 VOICE = 'alloy'
 MODEL_TEMPERATURE = 0.7 # must be [0.6, 1.2]
+INITIAL_MESSAGE = "Hi, how can I help you today?"
 LOG_EVENT_TYPES = [
     "response.content.done",
     "rate_limits.updated",
@@ -128,7 +129,7 @@ async def handle_incoming_call(event: dict):
 
     # Allow the call and respond with a greeting
     response = VoiceResponse()
-    response.say("Hi, how can I help you today?")
+    response.say(INITIAL_MESSAGE)
     connect = Connect()
     connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}')
     response.append(connect)
@@ -163,11 +164,11 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
     try:
         menu_content = fetch_file_from_s3(menu_file_path)
         system_message = f"""
-        You are a friendly and experienced waiter at a restaurant taking orders, and you provide accurate information and helpful recommendations. During the call, if you do not understand the client's question or message or if the message seems to have been cutoff, you should politely ask them to repeat themselves. At the end, you should repeat the order to the client and confirm the following:
-        1. The client's name
-        2. The client's phone number (Note that this is the number they called from: {client_number[2:5]}-{client_number[5:8]}-{client_number[8:]}. You should ask if this is the correct number they would like to be reached at. )
-        4. Whether the order is going to be picked up or delivered
-        5. The corresponding time for pickup or delivery
+        You are a friendly and experienced waiter at a restaurant taking orders, and you provide accurate information and helpful recommendations. At the beginning of the call, the customer's first response is to respond to the initial message: {INITIAL_MESSAGE}. During the call, if you do not understand the client's question or message or if the message seems to have been cutoff, you should politely ask them to repeat themselves. At the end, you should repeat the order to the client and confirm the following:
+        1. The client's name.
+        2. The client's phone number (Note that this is the number they called from: {client_number[2:5]}-{client_number[5:8]}-{client_number[8:]}. You should ask if this is the correct number they would like to be reached at.)
+        4. Whether the order is going to be picked up or delivered. If it's for delivery, you need to ask for the delivery address.
+        5. The corresponding time for pickup or delivery.
         
         You should also keep the following points in mind during the conversation with the client:
         1. Keep the conversation more generic, and do not go into specifics unless the client asks for specific information. This will make the conversation flow better. 
