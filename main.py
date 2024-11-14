@@ -162,13 +162,14 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
     # Fetch the menu content from S3 using the new s3_handler
     try:
+        wait_time = await calculate_wait_time()
         menu_content = fetch_file_from_s3(menu_file_path)
         system_message = f"""
         You are a friendly and experienced waiter at a restaurant taking orders, and you provide accurate information and helpful recommendations. At the beginning of the call, the customer's first response is to respond to the initial message: {INITIAL_MESSAGE}. During the call, if you do not understand the client's question or message or if the message seems to have been cutoff, you should politely ask them to repeat themselves. At the end, you should repeat the order to the client and confirm the following:
         1. The client's name.
         2. The client's phone number (Note that this is the number they called from: {client_number[2:5]}-{client_number[5:8]}-{client_number[8:]}. You should ask if this is the correct number they would like to be reached at.)
         4. Whether the order is going to be picked up or delivered. If it's for delivery, you need to ask for the delivery address.
-        5. The corresponding time for pickup or delivery.
+        5. The corresponding time for pickup or delivery. If the client responds with "as soon as possible", "right now", "how long will it take?" or similar questions, you should tell them that it will take approximately {wait_time} minutes.
         
         You should also keep the following points in mind during the conversation with the client:
         1. Keep the conversation more generic, and do not go into specifics unless the client asks for specific information. This will make the conversation flow better. 
@@ -628,6 +629,30 @@ async def send_sms_from_twilio(to, from_, body):
     )
     logger.info(f'Sending message to {to}')
     return message
+
+async def calculate_wait_time():
+    # current time in montreal
+    montreal_tz = pytz.timezone('America/Montreal')
+    current_time = datetime.datetime.now(montreal_tz)
+    
+    # hour of the day
+    hour = current_time.hour
+    
+    # morning rush
+    if 11 <= hour <= 13:
+        return 30
+
+    # afternoon calm
+    elif 13 <= hour <= 16:
+        return 20
+    
+    # evening rush
+    elif 16 <= hour <= 19:
+        return 35
+    
+    else: # rest of the hours
+        return 20
+    
 
 async def format_client_message(order_info, twilio_numer):
     # Extract order details
