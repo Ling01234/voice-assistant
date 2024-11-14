@@ -165,16 +165,17 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         system_message = f"""
         You are a friendly and experienced waiter at a restaurant taking orders, and you provide accurate information and helpful recommendations. During the call, if you do not understand the client's question or message or if the message seems to have been cutoff, you should politely ask them to repeat themselves. At the end, you should repeat the order to the client and confirm the following:
         1. The client's name
-        2. The client's phone number (Note that this is the number they called from, so you should ask if this is the correct number they would like to be reached at: {client_number[2:]})
-        3. The total price before tax
+        2. The client's phone number (Note that this is the number they called from: {client_number[2:5]}-{client_number[5:8]}-{client_number[8:]}. You should ask if this is the correct number they would like to be reached at. )
         4. Whether the order is going to be picked up or delivered
-        5. The corresponding time
+        5. The corresponding time for pickup or delivery
         
         You should also keep the following points in mind during the conversation with the client:
-        1. If you need to ask the client for information, do not ask too many at a time. Stick to asking 1 piece of information per request if possible. It's very important to split up the questions to avoid overwhelming the client.
-        2. If a client has already confirmed some of the information above (such as some ordered items), you do not need to repeat it back to them again.
-        3. You should behave like an experienced waiter, and ask meaningful follow up questions when necessary. For example, if a client orders a steak, you should ask them about the desired level of doneness. If a client orders a coffee, you should ask them if they want any milk or sugar. 
-        4. Make sure to carefully listen to the client's messages, such as when they give you their name. If you are unsure, politely ask them to repeat themselves.
+        1. Keep the conversation more generic, and go into specifics only if the client asks for specific information. This will keep the conversation more natural. 
+        2. If you need to ask the client for information, stick to asking 1 piece of information per request if possible. It's very important to split up the questions to avoid overwhelming the client.
+        3. If a client has already confirmed some of the information above (such as some ordered items), you do not need to repeat it back to them again.
+        4. You should behave like an experienced waiter, and ask meaningful follow up questions when necessary. For example, if a client orders a steak, you should ask them about the desired level of doneness. If a client orders a coffee, you should ask them if they want any milk or sugar. 
+        5. You should avoid giving any prices during the conversation, except it the client explicitly asks for it. 
+        6. Make sure to carefully listen to the client's messages, such as when they give you their name. If you are unsure, politely ask them to repeat themselves.
 
         Below are the extracted content from the menu. Be very careful and accurate when providing information from the menu.\n {menu_content}
         """
@@ -379,9 +380,9 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content):
                 2. phone number
                 3. order type (pickup or delivery)
                 4. pickup or delivery time
-                5. order information (items, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it as an empty string.
+                5. order information (item name, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it as an empty string.
                 
-                All information must be extracted from the given transcript below. If any is missing, simply leave it empty and make sure to not make up any information. Also, note that the transcript is a real-time conversation between a customer and the AI, so extract the information as accurately as possible. Be especially careful with the name of the customer. 
+                All information must be extracted from the given transcript below. If any is missing, simply leave it empty. NEVER MAKE UP ANY INFORMATION. Also, note that the transcript is a real-time conversation between a customer and the AI, so extract the information as accurately as possible. Be especially careful with the name of the customer. 
                 
                 Finally, determine if the order was placed, or if it was a mis-dial, or if the user hung up before finishing and confirming the order. Store this in a 'confirmation' key (as a boolean) if the order seems to have been placed by the user.
                 
