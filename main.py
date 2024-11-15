@@ -361,12 +361,15 @@ async def send_session_update(openai_ws, system_message, verbose=False):
             "tools": [
                 {
                     "type": "function",
-                    "name": "end_twilio_call",
-                    "description": "Ends the call if the conversation has concluded.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "call_sid": {"type": "string"}
+                    "function": {
+                        "name": "end_twilio_call",
+                        "description": "Ends the call if the conversation has concluded.",
+                        "strict": True,
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "call_sid": {"type": "string"}
+                            }
                         }
                     }
                 }
