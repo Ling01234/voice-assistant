@@ -65,7 +65,8 @@ LOG_EVENT_TYPES = [
     "response.text.done",
     "conversation.item.input_audio_transcription.completed",
     "function_call",
-    "response.function_call_arguments.done"
+    "response.function_call_arguments.done", 
+    "conversation.item.created",
 ]
 
 app = FastAPI()
@@ -315,7 +316,10 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             logger.error(f"Error processing audio data: {e}")
                             logger.info(f'\n{"-" * 75}\n')  # Logger separator
 
+                    # custom function calling
                     if response['type'] == 'conversation.item.created' and response['item']['type'] == 'function_call':
+
+                        # our end twilio call function
                         if response['item']['name'] == 'end_twilio_call':
                             await end_twilio_call(call_sid)
                             await decrement_live_calls(restaurant_id)
