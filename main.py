@@ -139,19 +139,6 @@ async def handle_incoming_call(event: dict):
 
     return HTMLResponse(content=str(response), media_type="application/xml")
 
-@app.api_route("/incoming-message", methods=["GET", "POST"])
-async def handle_incoming_message(request: Request):
-    data = await request.json()
-    logger.info(f'Incoming message: {data}')
-    # Create a Twilio MessagingResponse object
-    response = MessagingResponse()
-    
-    # Add a message to reply with "Hello"
-    response.message("Hello")
-    
-    # Return the TwiML response as XML
-    return HTMLResponse(content=str(response), media_type="application/xml")
-
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
                               client_number: str, call_sid: str, 
@@ -203,6 +190,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         }
     ) as openai_ws:
         await send_session_update(openai_ws, system_message)
+        await asyncio.sleep(0.5)
 
         stream_sid = None
         transcript = ""
@@ -251,6 +239,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
             finally:
                 # Ensure OpenAI WebSocket is closed if still open
+                logger.info("Client Disconnected in finally block")
                 if openai_ws.open:
                     await openai_ws.close()
 
