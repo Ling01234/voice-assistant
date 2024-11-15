@@ -357,19 +357,20 @@ async def send_session_update(openai_ws, system_message, verbose=False):
             "input_audio_transcription": {
                 "model": "whisper-1"
             },
-            "max_response_output_tokens": 1500 # max num of tokens for a single assistant response (including tool calls)
-            # "tools": [
-            #     {
-            #         "name": "end_twilio_call",
-            #         "description": "Ends the call if the conversation has concluded.",
-            #         "parameters": {
-            #             "type": "object",
-            #             "properties": {
-            #                 "call_sid": {"type": "string"}
-            #             }
-            #         }
-            #     }
-            # ]
+            "max_response_output_tokens": 1500, # max num of tokens for a single assistant response (including tool calls)
+            "tools": [
+                {
+                    "type": "function",
+                    "name": "end_twilio_call",
+                    "description": "Ends the call if the conversation has concluded.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "call_sid": {"type": "string"}
+                        }
+                    }
+                }
+            ]
         }
     }
 
