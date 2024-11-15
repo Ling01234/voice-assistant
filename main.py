@@ -143,7 +143,7 @@ async def handle_incoming_call(event: dict):
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
                               client_number: str, call_sid: str, 
-                              verbose=True, transcript_verbose=True):
+                              verbose=False, transcript_verbose=False):
     logger.info(f"{client_number} connected to media stream for restaurant_id: {restaurant_id}")
 
     # Menu path 
@@ -214,11 +214,12 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         logger.info(f"Incoming stream has started {stream_sid}")
 
                     elif data['event'] == 'stop':
+                        # Extract summary after call ends
+                        logger.info("Customer Ending Twilio call...")
+
                         # Decrement live call count when the call stops
                         await decrement_live_calls(restaurant_id)
 
-                        # Extract summary after call ends
-                        logger.info("Call ended. Extracting customer details...")
                         # logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
                         order_info = await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id, menu_content, client_number)
@@ -322,6 +323,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         # our end twilio call function
                         if response['item']['name'] == 'end_twilio_call':
                             await end_twilio_call(call_sid)
+
                             await decrement_live_calls(restaurant_id)
                             end_timer = time.time()
                             order_info = await process_transcript_and_send(
@@ -730,6 +732,7 @@ async def format_client_message(order_info, twilio_numer):
     return message
 
 async def end_twilio_call(call_sid):
+    logger.info("AI Assistant Ending Twilio call...")
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     call = client.calls(call_sid).update(status='completed')
     logger.info(f'Call ended by AI: {call.status}')
