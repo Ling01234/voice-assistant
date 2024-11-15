@@ -221,6 +221,10 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         # logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
                         order_info = await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id, menu_content, client_number)
+                        
+                        # if order not confirmed
+                        if not order_info: 
+                            return 
 
                         # Send message to customer
                         twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
