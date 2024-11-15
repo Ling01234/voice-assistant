@@ -142,7 +142,7 @@ async def handle_incoming_call(event: dict):
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
                               client_number: str, call_sid: str, 
-                              verbose=False, transcript_verbose=False):
+                              verbose=True, transcript_verbose=True):
     logger.info(f"{client_number} connected to media stream for restaurant_id: {restaurant_id}")
 
     # Menu path 
@@ -311,22 +311,22 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             logger.error(f"Error processing audio data: {e}")
                             logger.info(f'\n{"-" * 75}\n')  # Logger separator
 
-                    if response['type'] == 'conversation.item.created' and response['item']['type'] == 'function_call':
-                        if response['item']['name'] == 'end_twilio_call':
-                            await end_twilio_call(call_sid)
-                            await decrement_live_calls(restaurant_id)
-                            end_timer = time.time()
-                            order_info = await process_transcript_and_send(
-                                transcript, end_timer - start_timer, restaurant_id, menu_content, client_number
-                            )
+                    # if response['type'] == 'conversation.item.created' and response['item']['type'] == 'function_call':
+                    #     if response['item']['name'] == 'end_twilio_call':
+                    #         await end_twilio_call(call_sid)
+                    #         await decrement_live_calls(restaurant_id)
+                    #         end_timer = time.time()
+                    #         order_info = await process_transcript_and_send(
+                    #             transcript, end_timer - start_timer, restaurant_id, menu_content, client_number
+                    #         )
 
-                            twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
-                            client_message = await format_client_message(order_info, twilio_number)
-                            await send_sms_from_twilio(client_number, twilio_number, client_message)
+                    #         twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
+                    #         client_message = await format_client_message(order_info, twilio_number)
+                    #         await send_sms_from_twilio(client_number, twilio_number, client_message)
 
-                            if openai_ws.open:
-                                await openai_ws.close()
-                            return
+                    #         if openai_ws.open:
+                    #             await openai_ws.close()
+                    #         return
 
             except Exception as e:
                 logger.error(f"Error in send_to_twilio: {e}")
@@ -357,19 +357,19 @@ async def send_session_update(openai_ws, system_message, verbose=False):
             "input_audio_transcription": {
                 "model": "whisper-1"
             },
-            "max_response_output_tokens": 1000, # max num of tokens for a single assistant response (including tool calls)
-            "tools": [
-                {
-                    "name": "end_twilio_call",
-                    "description": "Ends the call if the conversation has concluded.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "call_sid": {"type": "string"}
-                        }
-                    }
-                }
-            ]
+            "max_response_output_tokens": 1000 # max num of tokens for a single assistant response (including tool calls)
+            # "tools": [
+            #     {
+            #         "name": "end_twilio_call",
+            #         "description": "Ends the call if the conversation has concluded.",
+            #         "parameters": {
+            #             "type": "object",
+            #             "properties": {
+            #                 "call_sid": {"type": "string"}
+            #             }
+            #         }
+            #     }
+            # ]
         }
     }
 
