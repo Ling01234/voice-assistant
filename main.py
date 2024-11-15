@@ -357,7 +357,7 @@ async def send_session_update(openai_ws, system_message, verbose=False):
             "input_audio_transcription": {
                 "model": "whisper-1"
             },
-            "max_response_output_tokens": 1000, # max num of tokens for a single assistant response (including tool calls)
+            "max_response_output_tokens": 1500, # max num of tokens for a single assistant response (including tool calls)
             "tools": [
                 {
                     "name": "end_twilio_call",
@@ -720,7 +720,7 @@ async def format_client_message(order_info, twilio_numer):
     
     return message
 
-async def end_twilio_call(call_sid):
+def end_twilio_call(call_sid):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     call = client.calls(call_sid).update(status='completed')
     logger.info(f'Call ended by AI: {call.status}')
