@@ -86,9 +86,6 @@ async def index_page():
 
 @app.api_route("/incoming-call", methods=["GET", "POST"])
 async def handle_incoming_call(event: dict):
-    # Increment the live call count for this restaurant
-    await increment_live_calls(restaurant_id)
-
     # Extract the body from the forwarded Lambda event
     body = event.get("body", "")
     is_base64_encoded = event.get("isBase64Encoded", False)
@@ -134,6 +131,9 @@ async def handle_incoming_call(event: dict):
         return HTMLResponse(content=str(response), media_type="application/xml")
 
     try:
+        # Increment the live call count for this restaurant
+        await increment_live_calls(restaurant_id)
+        
         # Allow the call and respond with a greeting
         response = VoiceResponse()
         response.say(INITIAL_MESSAGE)
