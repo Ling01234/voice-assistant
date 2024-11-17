@@ -133,7 +133,7 @@ async def handle_incoming_call(event: dict):
     try:
         # Increment the live call count for this restaurant
         await increment_live_calls(restaurant_id)
-        
+
         # Allow the call and respond with a greeting
         response = VoiceResponse()
         response.say(INITIAL_MESSAGE)
@@ -759,11 +759,15 @@ async def end_twilio_call(call_sid):
 @app.post("/twilio-recording")
 async def twilio_recording(request: Request):
     form_data = await request.form()
-    logger.info(f"Twilio recording webhook data: {json.dumps(form_data, indent=2)}")
 
-    call_sid = form_data.get("CallSid")
-    recording_url = form_data.get("RecordingUrl")
-    recording_duration = form_data.get("RecordingDuration")
+    # Convert form data to a dictionary for logging
+    form_dict = {key: value for key, value in form_data.items()}
+    logger.info(f"Twilio recording webhook data: {form_dict}")
+
+    # Extract individual parameters
+    call_sid = form_dict.get("CallSid")
+    recording_url = form_dict.get("RecordingUrl")
+    recording_duration = form_dict.get("RecordingDuration")
 
     if not call_sid or not recording_url or not recording_duration:
         logger.error("Missing required recording metadata in webhook")
@@ -777,7 +781,6 @@ async def twilio_recording(request: Request):
 
     try:
         insert_twilio_recording(connection, call_sid, recording_url, int(recording_duration))
-        # if verbose:
         logger.info("Twilio recording inserted successfully")
     except Exception as e:
         logger.error(f"Error processing Twilio recording webhook: {e}")
