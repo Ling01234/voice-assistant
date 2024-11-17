@@ -130,6 +130,20 @@ async def handle_incoming_call(event: dict):
         response.say("Sorry, all our lines are currently busy. Please try again later.")
         return HTMLResponse(content=str(response), media_type="application/xml")
 
+    # Enable recording for the call using Twilio's REST API
+    try:
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        client.calls(call_sid).update(
+            record=True,
+            status_callback="https://angelsbot.net/twilio-recording",
+            status_callback_method="POST",
+            status_callback_event=["completed"]  # Trigger on call completion
+        )
+        logger.info(f"Recording enabled for call SID: {call_sid}")
+    except Exception as e:
+        logger.error(f"Failed to enable recording for call SID {call_sid}: {e}")
+
+
     try:
         # Increment the live call count for this restaurant
         await increment_live_calls(restaurant_id)
@@ -141,15 +155,7 @@ async def handle_incoming_call(event: dict):
         connect = Connect()
         connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
         response.append(connect)
-
-        # Initiate recording via TwiML `<Start>` command
-        response.start().record(
-            action=f"https://angelsbot.net/twilio-recording",
-            method="POST",
-            max_length=3600,
-            play_beep=True  # Optional
-        )
-
+        
         if VERBOSE:
             logger.info(f"Response: {response}")
 
