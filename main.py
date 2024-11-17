@@ -147,9 +147,9 @@ async def handle_incoming_call(event: dict):
         try:
             client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
             client.calls(call_sid).recordings.create(
-                recording_status_callback="https://angelsbot.net/twilio-recording",
-                recording_status_callback_method="POST",
-                recording_status_callback_event=["completed"],  # Trigger on call completion
+                status_callback="https://angelsbot.net/twilio-recording",
+                status_callback_method="POST",
+                status_callback_event=["completed"],  # Trigger on call completion
                 recording_channels="dual"  # Record both sides of the call
             )
             logger.info(f"Recording enabled for call SID: {call_sid}")
