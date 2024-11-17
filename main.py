@@ -759,6 +759,7 @@ async def end_twilio_call(call_sid):
 @app.post("/twilio-recording")
 async def twilio_recording(request: Request):
     form_data = await request.form()
+    logger.info(f"Twilio recording webhook data: {json.dumps(form_data, indent=2)}")
 
     call_sid = form_data.get("CallSid")
     recording_url = form_data.get("RecordingUrl")
