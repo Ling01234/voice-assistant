@@ -86,6 +86,9 @@ async def index_page():
 
 @app.api_route("/incoming-call", methods=["GET", "POST"])
 async def handle_incoming_call(event: dict):
+    # Increment the live call count for this restaurant
+    await increment_live_calls(restaurant_id)
+
     # Extract the body from the forwarded Lambda event
     body = event.get("body", "")
     is_base64_encoded = event.get("isBase64Encoded", False)
@@ -130,26 +133,31 @@ async def handle_incoming_call(event: dict):
         response.say("Sorry, all our lines are currently busy. Please try again later.")
         return HTMLResponse(content=str(response), media_type="application/xml")
 
-    # Increment the live call count for this restaurant
-    await increment_live_calls(restaurant_id)
+    try:
+        # Allow the call and respond with a greeting
+        response = VoiceResponse()
+        response.say(INITIAL_MESSAGE)
 
-    # Allow the call and respond with a greeting
-    response = VoiceResponse()
-    response.say(INITIAL_MESSAGE)
+        # Enable call recording
+        response.record(
+            action=f"https://angelsbot.net/twilio-recording",
+            method="POST",
+            max_length=3600,  # Max recording length in seconds (1 hour here)
+            play_beep=True  # Optional: Play a beep to indicate recording
+        )
 
-    # Enable call recording
-    response.record(
-        action=f"https://angelsbot.net/twilio-recording",
-        method="POST",
-        max_length=3600,  # Max recording length in seconds (1 hour here)
-        play_beep=True  # Optional: Play a beep to indicate recording
-    )
+        if VERBOSE:
+            logger.info(f"Response: {response}")
 
-    connect = Connect()
-    connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
-    response.append(connect)
+        connect = Connect()
+        connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
+        response.append(connect)
 
-    return HTMLResponse(content=str(response), media_type="application/xml")
+        return HTMLResponse(content=str(response), media_type="application/xml")
+
+    except Exception as e:
+        await decrement_live_calls(restaurant_id) # decrement even if there is an error
+        logger.error(f"Error handling incoming call: {e}")
 
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
