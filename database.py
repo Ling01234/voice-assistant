@@ -122,6 +122,31 @@ def insert_order_items(connection, order_items, order_id):
     except Error as e:
         logger.error(f"Error inserting order items: {e}")
 
+def insert_twilio_recording(connection, call_sid, recording_url, recording_duration):
+    """
+    Inserts Twilio recording details into the Calls table.
+
+    Parameters:
+        connection (MySQLConnection): The database connection.
+        call_sid (str): The Twilio Call SID.
+        recording_url (str): The URL of the recording.
+        recording_duration (int): The duration of the recording in seconds.
+    """
+    try:
+        cursor = connection.cursor()
+        query = """
+        UPDATE Calls
+        SET recording_url = %s, recording_duration = %s
+        WHERE call_id = %s
+        """
+        cursor.execute(query, (recording_url, recording_duration, call_sid))
+        connection.commit()
+        
+        if VERBOSE:
+            logger.info("Recording metadata inserted successfully.")
+    except Error as e:
+        logger.error(f"Error inserting recording metadata to mysql: {e}")
+
 def get_restaurant_id_by_twilio_number(twilio_number):
     """
     Retrieves the restaurant_id associated with a given Twilio phone number.

@@ -51,6 +51,8 @@ logging.basicConfig(
 
 logger = logging.getLogger("voice-assistant-app")
 
+VERBOSE = True
+VERBOSE_TRANSCRIPT = True
 VOICE = 'alloy'
 MODEL_TEMPERATURE = 0.7 # must be [0.6, 1.2]
 INITIAL_MESSAGE = "Hi, how can I help you today?"
@@ -134,6 +136,15 @@ async def handle_incoming_call(event: dict):
     # Allow the call and respond with a greeting
     response = VoiceResponse()
     response.say(INITIAL_MESSAGE)
+
+    # Enable call recording
+    response.record(
+        action=f"https://angelsbot.net/twilio-recording",
+        method="POST",
+        max_length=3600,  # Max recording length in seconds (1 hour here)
+        play_beep=True  # Optional: Play a beep to indicate recording
+    )
+
     connect = Connect()
     connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
     response.append(connect)
@@ -143,7 +154,7 @@ async def handle_incoming_call(event: dict):
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
                               client_number: str, call_sid: str, 
-                              verbose=False, transcript_verbose=False):
+                              verbose=VERBOSE, verbose_transcript=VERBOSE_TRANSCRIPT):
     logger.info(f"{client_number} connected to media stream for restaurant_id: {restaurant_id}")
 
     # Menu path 
@@ -262,7 +273,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         user_message = response.get('transcript', '').strip()
                         transcript += f"User: {user_message}\n\n"
                         
-                        if transcript_verbose:
+                        if verbose_transcript:
                             logger.info(f"User: {user_message}\n")
 
                     if response['type'] == 'response.done':
@@ -276,7 +287,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             
                         transcript += f"Agent: {agent_message}\n\n"
                         
-                        if transcript_verbose:
+                        if verbose_transcript:
                             logger.info(f"Agent: {agent_message}\n")
 
                     if response['type'] == 'session.updated' and verbose:
@@ -736,6 +747,36 @@ async def end_twilio_call(call_sid):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     call = client.calls(call_sid).update(status='completed')
     logger.info(f'Call ended by AI: {call.status}')
+
+@app.post("/twilio-recording")
+async def twilio_recording(request: Request):
+    form_data = await request.form()
+
+    call_sid = form_data.get("CallSid")
+    recording_url = form_data.get("RecordingUrl")
+    recording_duration = form_data.get("RecordingDuration")
+
+    if not call_sid or not recording_url or not recording_duration:
+        logger.error("Missing required recording metadata in webhook")
+        return {"error": "Missing required parameters"}, 400
+
+    # Insert recording metadata into the database
+    connection = create_connection()
+    if not connection:
+        logger.error("Failed to connect to the database")
+        return {"error": "Database connection failed"}, 500
+
+    try:
+        insert_twilio_recording(connection, call_sid, recording_url, int(recording_duration))
+        # if verbose:
+        logger.info("Twilio recording inserted successfully")
+    except Exception as e:
+        logger.error(f"Error processing Twilio recording webhook: {e}")
+        return {"error": "Internal server error"}, 500
+    finally:
+        close_connection(connection)
+
+    return {"message": "Recording processed successfully"}, 200
 
 # run app
 if __name__ == "__main__":
