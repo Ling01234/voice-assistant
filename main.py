@@ -138,13 +138,13 @@ async def handle_incoming_call(event: dict):
         response = VoiceResponse()
         response.say(INITIAL_MESSAGE)
 
-        # Enable call recording
-        response.record(
-            action=f"https://angelsbot.net/twilio-recording",
-            method="POST",
-            max_length=3600,  # Max recording length in seconds (1 hour here)
-            play_beep=True  # Optional: Play a beep to indicate recording
-        )
+        # # Enable call recording
+        # response.record(
+        #     action=f"https://angelsbot.net/twilio-recording",
+        #     method="POST",
+        #     max_length=3600,  # Max recording length in seconds (1 hour here)
+        #     play_beep=True  # Optional: Play a beep to indicate recording
+        # )
 
         connect = Connect()
         connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
