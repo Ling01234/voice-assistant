@@ -343,15 +343,15 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         if response['item']['name'] == 'end_twilio_call':
                             await end_twilio_call(call_sid)
 
-                            await decrement_live_calls(restaurant_id)
-                            end_timer = time.time()
-                            order_info = await process_transcript_and_send(
-                                transcript, end_timer - start_timer, restaurant_id, menu_content, client_number
-                            )
+                            # await decrement_live_calls(restaurant_id)
+                            # end_timer = time.time()
+                            # order_info = await process_transcript_and_send(
+                            #     transcript, end_timer - start_timer, restaurant_id, menu_content, client_number
+                            # )
 
-                            twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
-                            client_message = await format_client_message(order_info, twilio_number)
-                            await send_sms_from_twilio(client_number, twilio_number, client_message)
+                            # twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
+                            # client_message = await format_client_message(order_info, twilio_number)
+                            # await send_sms_from_twilio(client_number, twilio_number, client_message)
 
                             if openai_ws.open:
                                 await openai_ws.close()
