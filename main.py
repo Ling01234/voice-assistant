@@ -146,12 +146,12 @@ async def handle_incoming_call(event: dict):
             play_beep=True  # Optional: Play a beep to indicate recording
         )
 
-        if VERBOSE:
-            logger.info(f"Response: {response}")
-
         connect = Connect()
         connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
         response.append(connect)
+
+        if VERBOSE:
+            logger.info(f"Response: {response}")
 
         return HTMLResponse(content=str(response), media_type="application/xml")
 
