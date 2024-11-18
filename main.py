@@ -779,7 +779,6 @@ async def twilio_recording(request: Request):
 
     try:
         insert_twilio_recording(connection, call_sid, recording_url, int(recording_duration))
-        logger.info("Twilio recording inserted successfully")
     except Exception as e:
         logger.error(f"Error processing Twilio recording webhook: {e}")
         return {"error": "Internal server error"}, 500
