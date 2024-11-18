@@ -51,8 +51,8 @@ logging.basicConfig(
 
 logger = logging.getLogger("voice-assistant-app")
 
-VERBOSE = True
-VERBOSE_TRANSCRIPT = True
+VERBOSE = False
+VERBOSE_TRANSCRIPT = False
 VOICE = 'alloy'
 MODEL_TEMPERATURE = 0.7 # must be [0.6, 1.2]
 INITIAL_MESSAGE = "Hi, how can I help you today?"
@@ -105,19 +105,23 @@ async def handle_incoming_call(request: Request):
 
         # Parse the URL-encoded body into a dictionary
         parsed_data = parse_qs(decoded_body)
+        
+        # remove list in dict values
+        parsed_data = {key: value[0] for key, value in parsed_data.items()}
 
     elif "application/x-www-form-urlencoded" in content_type:
         # Direct Twilio request via Ngrok
         form_data = await request.form()
         parsed_data = {key: value for key, value in form_data.items()}
+        logger.info(f'TESTING PARSED DATA: {json.dumps(parsed_data, indent=2)}')
 
     else:
         raise HTTPException(status_code=400, detail="Unsupported Content-Type")
 
     # Extract necessary Twilio parameters
-    twilio_number = parsed_data.get("To", [None])[0]
-    client_number = parsed_data.get("From", [None])[0]
-    call_sid = parsed_data.get("CallSid", [None])[0]
+    twilio_number = parsed_data.get("To", None)
+    client_number = parsed_data.get("From", None)
+    call_sid = parsed_data.get("CallSid", None)
 
     if not twilio_number:
         raise HTTPException(status_code=400, detail="Missing 'To' parameter in the request")
@@ -778,7 +782,7 @@ async def twilio_recording(request: Request):
 
     # Convert form data to a dictionary for logging
     form_dict = {key: value for key, value in form_data.items()}
-    logger.info(f"Twilio recording webhook data: {form_dict}")
+    logger.info(f"Twilio recording webhook data: {json.dumps(form_dict, indent=2)}")
 
     # Extract individual parameters
     call_sid = form_dict.get("CallSid")

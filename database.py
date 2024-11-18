@@ -19,7 +19,7 @@ DB_CONFIG = {
     'password': os.getenv("DB_PASSWORD"),
     'port': os.getenv("DB_PORT", 3306)
 }
-VERBOSE = False
+VERBOSE = True
 
 def create_connection(verbose=False):
     try:
