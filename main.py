@@ -16,7 +16,7 @@ from urllib.parse import parse_qs
 from fastapi import FastAPI, WebSocket, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.websockets import WebSocketDisconnect
-from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream, Record
+from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.rest import Client
 from dotenv import load_dotenv
@@ -84,8 +84,6 @@ if not OPENAI_API_KEY:
 async def index_page():
     return "<h1>Server is up and running. </h1>"
 
-from twilio.base.exceptions import TwilioRestException
-
 @app.api_route("/incoming-call", methods=["GET", "POST"])
 async def handle_incoming_call(event: dict):
     # Extract the body from the forwarded Lambda event
@@ -126,46 +124,38 @@ async def handle_incoming_call(event: dict):
         response = VoiceResponse()
         response.say(INITIAL_MESSAGE)
 
-        # Add status callback to monitor call progress
-        response.append(
-            Connect()
-            .stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
-        )
-        response.append(
-            Record(
-                action=f"https://angelsbot.net/twilio-recording",
-                method="POST",
-                recording_status_callback="https://angelsbot.net/twilio-status",
-                recording_status_callback_method="POST",
-            )
-        )
+        # Append the WebSocket stream
+        connect = Connect()
+        connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
+        response.append(connect)
 
-        if VERBOSE:
-            logger.info(f"Response: {response}")
+        # Send the response to Twilio
+        html_response = HTMLResponse(content=str(response), media_type="application/xml")
 
-        return HTMLResponse(content=str(response), media_type="application/xml")
+        # Start recording after the connection
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+        # Re-fetch the call details to ensure it's in progress
+        call = client.calls(call_sid).fetch()
+        logger.info(f"Call status for SID {call_sid}: {call.status}")
+
+        if call.status != "in-progress":
+            logger.error(f"Call SID {call_sid} is not in progress. Current status: {call.status}")
+            raise Exception("Call is not in a valid state for recording")
+
+        # Create the recording
+        recording = client.calls(call_sid).recordings.create(
+            recording_status_callback="https://angelsbot.net/twilio-recording",
+            recording_status_callback_method="POST",
+            recording_channels="dual"  # Optional: record both sides of the conversation
+        )
+        logger.info(f"Recording created for call SID {call_sid}. Recording SID: {recording.sid}")
+
+        return html_response
 
     except Exception as e:
         await decrement_live_calls(restaurant_id)  # decrement even if there is an error
-        logger.error(f"Error handling incoming call: {e}")
-
-@app.post("/twilio-status")
-async def handle_twilio_status(request: Request):
-    form_data = await request.form()
-
-    call_sid = form_data.get("CallSid")
-    call_status = form_data.get("CallStatus")
-
-    logger.info(f"Received status update for call SID {call_sid}: {call_status}")
-
-    # Start recording when the call is in-progress
-    if call_status == "in-progress":
-        try:
-            client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-            recording = client.calls(call_sid).recordings.create()
-            logger.info(f"Recording started for call SID {call_sid}. Recording SID: {recording.sid}")
-        except Exception as e:
-            logger.error(f"Failed to start recording for call SID {call_sid}: {e}", exc_info=True)
+        logger.error(f"Error handling incoming call: {e}", exc_info=True)
 
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
