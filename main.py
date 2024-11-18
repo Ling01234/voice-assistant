@@ -99,12 +99,11 @@ async def handle_incoming_call(event: dict):
 
     # Parse the decoded body as URL-encoded data
     parsed_data = parse_qs(decoded_body)
-    # logging.info(f'Incoming call parsed data: {json.dumps(parsed_data, indent=2)}')
 
     # Extract the To and From number, handling list structure
-    twilio_number = parsed_data.get("To", [None])[0]  # Use [0] to get the first element in the list
-    client_number = parsed_data.get("From", [None])[0]  # Use [0] to get the first element in the list
-    call_sid = parsed_data.get("CallSid", [None])[0]  # Use [0] to get the first element in the list
+    twilio_number = parsed_data.get("To", [None])[0]
+    client_number = parsed_data.get("From", [None])[0]
+    call_sid = parsed_data.get("CallSid", [None])[0]
 
     if not twilio_number:
         raise HTTPException(status_code=400, detail="Missing 'To' parameter in the request")
@@ -121,7 +120,6 @@ async def handle_incoming_call(event: dict):
 
     logger.info(f"Restaurant number: {twilio_number}")
     logger.info(f"Restaurant id: {restaurant_id}")
-    # logger.info(f"Max concurrent calls: {max_concurrent_calls}")
 
     # Check the current live call count for this restaurant
     live_calls = await get_live_calls(restaurant_id)
@@ -129,7 +127,6 @@ async def handle_incoming_call(event: dict):
         response = VoiceResponse()
         response.say("Sorry, all our lines are currently busy. Please try again later.")
         return HTMLResponse(content=str(response), media_type="application/xml")
-
 
     try:
         # Increment the live call count for this restaurant
@@ -139,40 +136,30 @@ async def handle_incoming_call(event: dict):
         response = VoiceResponse()
         response.say(INITIAL_MESSAGE)
 
-        response.record(
-            action=f"https://angelsbot.net/twilio-recording",
-            method="POST",
-            play_beep=True,
-            recording_status_callback="https://angelsbot.net/twilio-recording",
-            recording_status_callback_method="POST",
-            recording_status_callback_event=["completed"],  # Trigger on call completion
-    #         recording_channels="dual"  # Record both sides of the call
-        )
+        # Enable WebSocket streaming
         connect = Connect()
         connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
         response.append(connect)
-        
 
-        # # Enable recording for the call using Twilio's REST API
-        # try:
-        #     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        #     client.calls(call_sid).recordings.create(
-        #         recording_status_callback="https://angelsbot.net/twilio-recording",
-        #         recording_status_callback_method="POST",
-        #         recording_status_callback_event=["completed"],  # Trigger on call completion
-        #         recording_channels="dual"  # Record both sides of the call
-        #     )
-        #     logger.info(f"Recording enabled for call SID: {call_sid}")
-        # except Exception as e:
-        #     logger.error(f"Failed to enable recording for call SID {call_sid}: {e}", exc_info=True)
-        
+        # Enable call recording programmatically
+        try:
+            client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+            client.calls(call_sid).recordings.create(
+                recording_status_callback="https://angelsbot.net/twilio-recording",
+                recording_status_callback_method="POST",
+                recording_channels="dual"  # Record both sides of the call
+            )
+            logger.info(f"Recording enabled for call SID: {call_sid}")
+        except Exception as e:
+            logger.error(f"Failed to enable recording for call SID {call_sid}: {e}", exc_info=True)
+
         if VERBOSE:
             logger.info(f"Response: {response}")
 
         return HTMLResponse(content=str(response), media_type="application/xml")
 
     except Exception as e:
-        await decrement_live_calls(restaurant_id) # decrement even if there is an error
+        await decrement_live_calls(restaurant_id)  # decrement even if there is an error
         logger.error(f"Error handling incoming call: {e}")
 
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
