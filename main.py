@@ -131,10 +131,23 @@ async def handle_incoming_call(request: Request):
     if not restaurant_id:
         raise HTTPException(status_code=404, detail="Restaurant not found for this number")
 
+    # max concurrent calls
+    max_concurrent_calls = get_max_concurrent_calls_by_restaurant_id(restaurant_id)
+    if not max_concurrent_calls:
+        raise HTTPException(status_code=404, detail="Max concurrent calls not found for this restaurant")
+
     logger.info(f"Restaurant number: {twilio_number}")
     logger.info(f"Restaurant id: {restaurant_id}")
 
     try:
+
+        # Check the current live call count for this restaurant
+        live_calls = await get_live_calls(restaurant_id)
+        if live_calls >= max_concurrent_calls:
+            response = VoiceResponse()
+            response.say("Sorry, all our lines are currently busy. Please try again later.")
+            return HTMLResponse(content=str(response), media_type="application/xml")
+            
         # Increment live call count for the restaurant
         await increment_live_calls(restaurant_id)
 
