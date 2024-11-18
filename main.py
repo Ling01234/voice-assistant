@@ -16,7 +16,7 @@ from urllib.parse import parse_qs
 from fastapi import FastAPI, WebSocket, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.websockets import WebSocketDisconnect
-from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
+from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream, Record
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.rest import Client
 from dotenv import load_dotenv
@@ -119,25 +119,6 @@ async def handle_incoming_call(event: dict):
     logger.info(f"Restaurant id: {restaurant_id}")
 
     try:
-        # Check the status of the call
-        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        call = client.calls(call_sid).fetch()
-        logger.info(f"Call status for SID {call_sid}: {call.status}")
-
-        # Only proceed if the call is in progress
-        if call.status != "in-progress":
-            logger.error(f"Call SID {call_sid} is not in progress. Current status: {call.status}")
-            raise Exception("Call is not in a valid state for recording")
-
-        # Enable recording for the call
-        recording = client.calls(call_sid).recordings.create()
-        logger.info(f"Recording created for call SID {call_sid}. Recording SID: {recording.sid}")
-    except TwilioRestException as e:
-        logger.error(f"Twilio API error: {e}")
-    except Exception as e:
-        logger.error(f"Failed to enable recording for call SID {call_sid}: {e}", exc_info=True)
-
-    try:
         # Increment the live call count for this restaurant
         await increment_live_calls(restaurant_id)
 
@@ -145,15 +126,46 @@ async def handle_incoming_call(event: dict):
         response = VoiceResponse()
         response.say(INITIAL_MESSAGE)
 
-        connect = Connect()
-        connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
-        response.append(connect)
+        # Add status callback to monitor call progress
+        response.append(
+            Connect()
+            .stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
+        )
+        response.append(
+            Record(
+                action=f"https://angelsbot.net/twilio-recording",
+                method="POST",
+                recording_status_callback="https://angelsbot.net/twilio-status",
+                recording_status_callback_method="POST",
+            )
+        )
+
+        if VERBOSE:
+            logger.info(f"Response: {response}")
 
         return HTMLResponse(content=str(response), media_type="application/xml")
 
     except Exception as e:
         await decrement_live_calls(restaurant_id)  # decrement even if there is an error
         logger.error(f"Error handling incoming call: {e}")
+
+@app.post("/twilio-status")
+async def handle_twilio_status(request: Request):
+    form_data = await request.form()
+
+    call_sid = form_data.get("CallSid")
+    call_status = form_data.get("CallStatus")
+
+    logger.info(f"Received status update for call SID {call_sid}: {call_status}")
+
+    # Start recording when the call is in-progress
+    if call_status == "in-progress":
+        try:
+            client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+            recording = client.calls(call_sid).recordings.create()
+            logger.info(f"Recording started for call SID {call_sid}. Recording SID: {recording.sid}")
+        except Exception as e:
+            logger.error(f"Failed to start recording for call SID {call_sid}: {e}", exc_info=True)
 
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
