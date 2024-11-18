@@ -124,44 +124,38 @@ async def handle_incoming_call(event: dict):
         response = VoiceResponse()
         response.say(INITIAL_MESSAGE)
 
-        # Append the WebSocket stream
         connect = Connect()
         connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
         response.append(connect)
 
-        # Send the response to Twilio
-        html_response = HTMLResponse(content=str(response), media_type="application/xml")
-
-        # Start recording after the connection
-        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-
-        # Re-fetch the call details to ensure it's in progress
-        call = client.calls(call_sid).fetch()
-        logger.info(f"Call status for SID {call_sid}: {call.status}")
-
-        if call.status != "in-progress":
-            logger.error(f"Call SID {call_sid} is not in progress. Current status: {call.status}")
-            raise Exception("Call is not in a valid state for recording")
-
-        # Create the recording
-        recording = client.calls(call_sid).recordings.create(
-            recording_status_callback="https://angelsbot.net/twilio-recording",
-            recording_status_callback_method="POST",
-            recording_channels="dual"  # Optional: record both sides of the conversation
-        )
-        logger.info(f"Recording created for call SID {call_sid}. Recording SID: {recording.sid}")
-
-        return html_response
+        return HTMLResponse(content=str(response), media_type="application/xml")
 
     except Exception as e:
         await decrement_live_calls(restaurant_id)  # decrement even if there is an error
-        logger.error(f"Error handling incoming call: {e}", exc_info=True)
+        logger.error(f"Error handling incoming call: {e}")
 
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
                               client_number: str, call_sid: str, 
                               verbose=VERBOSE, verbose_transcript=VERBOSE_TRANSCRIPT):
     logger.info(f"{client_number} connected to media stream for restaurant_id: {restaurant_id}")
+
+    try:
+        # Check the status of the call
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        call = client.calls(call_sid).fetch()
+        logger.info(f"Call status for SID {call_sid}: {call.status}")
+
+        # Only proceed if the call is in progress
+        if call.status != "in-progress":
+            logger.error(f"Call SID {call_sid} is not in progress. Current status: {call.status}")
+            raise Exception("Call is not in a valid state for recording")
+
+        # Enable recording for the call
+        recording = client.calls(call_sid).recordings.create()
+        logger.info(f"Recording created for call SID {call_sid}. Recording SID: {recording.sid}")
+    except Exception as e:
+        logger.error(f"Failed to enable recording for call SID {call_sid}: {e}", exc_info=True)
 
     # Menu path 
     menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id))
