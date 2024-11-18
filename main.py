@@ -84,6 +84,8 @@ if not OPENAI_API_KEY:
 async def index_page():
     return "<h1>Server is up and running. </h1>"
 
+from twilio.base.exceptions import TwilioRestException
+
 @app.api_route("/incoming-call", methods=["GET", "POST"])
 async def handle_incoming_call(event: dict):
     # Extract the body from the forwarded Lambda event
@@ -113,20 +115,27 @@ async def handle_incoming_call(event: dict):
     if not restaurant_id:
         raise HTTPException(status_code=404, detail="Restaurant not found for this number")
 
-    # max concurrent calls
-    max_concurrent_calls = get_max_concurrent_calls_by_restaurant_id(restaurant_id)
-    if not max_concurrent_calls:
-        raise HTTPException(status_code=404, detail="Max concurrent calls not found for this restaurant")
-
     logger.info(f"Restaurant number: {twilio_number}")
     logger.info(f"Restaurant id: {restaurant_id}")
 
-    # Check the current live call count for this restaurant
-    live_calls = await get_live_calls(restaurant_id)
-    if live_calls >= max_concurrent_calls:
-        response = VoiceResponse()
-        response.say("Sorry, all our lines are currently busy. Please try again later.")
-        return HTMLResponse(content=str(response), media_type="application/xml")
+    try:
+        # Check the status of the call
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        call = client.calls(call_sid).fetch()
+        logger.info(f"Call status for SID {call_sid}: {call.status}")
+
+        # Only proceed if the call is in progress
+        if call.status != "in-progress":
+            logger.error(f"Call SID {call_sid} is not in progress. Current status: {call.status}")
+            raise Exception("Call is not in a valid state for recording")
+
+        # Enable recording for the call
+        recording = client.calls(call_sid).recordings.create()
+        logger.info(f"Recording created for call SID {call_sid}. Recording SID: {recording.sid}")
+    except TwilioRestException as e:
+        logger.error(f"Twilio API error: {e}")
+    except Exception as e:
+        logger.error(f"Failed to enable recording for call SID {call_sid}: {e}", exc_info=True)
 
     try:
         # Increment the live call count for this restaurant
@@ -136,25 +145,9 @@ async def handle_incoming_call(event: dict):
         response = VoiceResponse()
         response.say(INITIAL_MESSAGE)
 
-        # Enable WebSocket streaming
         connect = Connect()
         connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
         response.append(connect)
-
-        # Enable call recording programmatically
-        try:
-            client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-            client.calls(call_sid).recordings.create(
-                recording_status_callback="https://angelsbot.net/twilio-recording",
-                recording_status_callback_method="POST",
-                recording_channels="dual"  # Record both sides of the call
-            )
-            logger.info(f"Recording enabled for call SID: {call_sid}")
-        except Exception as e:
-            logger.error(f"Failed to enable recording for call SID {call_sid}: {e}", exc_info=True)
-
-        if VERBOSE:
-            logger.info(f"Response: {response}")
 
         return HTMLResponse(content=str(response), media_type="application/xml")
 
