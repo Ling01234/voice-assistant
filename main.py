@@ -136,33 +136,41 @@ async def handle_incoming_call(event: dict):
 
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
-                              client_number: str, call_sid: str, 
-                              verbose=VERBOSE, verbose_transcript=VERBOSE_TRANSCRIPT):
+                              client_number: str, call_sid: str):
     logger.info(f"{client_number} connected to media stream for restaurant_id: {restaurant_id}")
 
     try:
-        # Check the status of the call
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        call = client.calls(call_sid).fetch()
-        logger.info(f"Call status for SID {call_sid}: {call.status}")
 
-        # Only proceed if the call is in progress
-        if call.status != "in-progress":
-            logger.error(f"Call SID {call_sid} is not in progress. Current status: {call.status}")
-            raise Exception("Call is not in a valid state for recording")
+        if VERBOSE:
+            call = client.calls(call_sid).fetch()
+            logger.info(f"Call status for SID {call_sid}: {call.status}")
 
-        # Enable recording for the call
-        recording = client.calls(call_sid).recordings.create()
-        logger.info(f"Recording created for call SID {call_sid}. Recording SID: {recording.sid}")
+            # Proceed only if the call is in progress
+            if call.status != "in-progress":
+                logger.error(f"Call SID {call_sid} is not in progress. Current status: {call.status}")
+                raise Exception("Call is not in a valid state for recording")
+
+        # Enable recording for the call with a status callback
+        recording = client.calls(call_sid).recordings.create(
+            recording_status_callback="https://angelsbot.net/twilio-recording",
+            recording_status_callback_method="POST",
+            recording_status_callback_event=["completed"],  # Trigger on recording completion
+            recording_channels="dual"  # Optional: record both sides of the conversation
+        )
+        
+        if VERBOSE:
+            logger.info(f"Recording initiated for call SID {call_sid}. Recording SID: {recording.sid}")
+
     except Exception as e:
         logger.error(f"Failed to enable recording for call SID {call_sid}: {e}", exc_info=True)
 
-    # Menu path 
+    # Proceed with WebSocket interaction
     menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id))
     logger.info(f'Menu file path: {menu_file_path}')
     if not menu_file_path:
         raise HTTPException(status_code=404, detail="Menu file path not found for this restaurant")
-
+    
     # Fetch the menu content from S3 using the new s3_handler
     try:
         wait_time = await calculate_wait_time()
@@ -266,14 +274,14 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                 async for openai_message in openai_ws:
                     response = json.loads(openai_message)
 
-                    if response['type'] in LOG_EVENT_TYPES and verbose:
+                    if response['type'] in LOG_EVENT_TYPES and VERBOSE:
                         logger.info(f"Received event ({response['type']}): {response}")
 
                     if response['type'] == 'conversation.item.input_audio_transcription.completed':
                         user_message = response.get('transcript', '').strip()
                         transcript += f"User: {user_message}\n\n"
                         
-                        if verbose_transcript:
+                        if VERBOSE_TRANSCRIPT:
                             logger.info(f"User: {user_message}\n")
 
                     if response['type'] == 'response.done':
@@ -287,15 +295,15 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             
                         transcript += f"Agent: {agent_message}\n\n"
                         
-                        if verbose_transcript:
+                        if VERBOSE_TRANSCRIPT:
                             logger.info(f"Agent: {agent_message}\n")
 
-                    if response['type'] == 'session.updated' and verbose:
+                    if response['type'] == 'session.updated' and VERBOSE:
                         logger.info(f'Session updated successfully: {response}')
 
                     # Handle 'speech_started' event
                     if response['type'] == 'input_audio_buffer.speech_started':
-                        if verbose:
+                        if VERBOSE:
                             logger.info(f"Speech Start: {response['type']}")
 
                         # Clear ongoing speech on Twilio side
@@ -304,7 +312,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             "event": "clear"
                         }
                         await websocket.send_json(clear_event)
-                        if verbose: 
+                        if VERBOSE: 
                             logger.info("Cancelling AI speech from the server")
 
                         # Send interrupt message to OpenAI
@@ -360,7 +368,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         await asyncio.gather(receive_from_twilio(), send_to_twilio())
 
 
-async def send_session_update(openai_ws, system_message, verbose=False):
+async def send_session_update(openai_ws, system_message, VERBOSE=False):
     session_update = {
         "type": "session.update",
         "session": {
@@ -395,7 +403,7 @@ async def send_session_update(openai_ws, system_message, verbose=False):
         }
     }
 
-    if verbose:
+    if VERBOSE:
         logger.info(f'Sending session update: {json.dumps(session_update)}')
 
     await openai_ws.send(json.dumps(session_update))
