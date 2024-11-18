@@ -139,10 +139,6 @@ async def handle_incoming_call(event: dict):
         response = VoiceResponse()
         response.say(INITIAL_MESSAGE)
 
-        connect = Connect()
-        connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
-        response.append(connect)
-        
         response.record(
             action=f"https://angelsbot.net/twilio-recording",
             method="POST",
@@ -152,6 +148,10 @@ async def handle_incoming_call(event: dict):
             recording_status_callback_event=["completed"],  # Trigger on call completion
     #         recording_channels="dual"  # Record both sides of the call
         )
+        connect = Connect()
+        connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
+        response.append(connect)
+        
 
         # # Enable recording for the call using Twilio's REST API
         # try:
