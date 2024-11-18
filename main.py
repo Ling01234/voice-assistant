@@ -241,7 +241,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
                         # logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
-                        order_info = await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id, menu_content, client_number)
+                        order_info = await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id, menu_content, client_number, call_sid)
                         
                         # if order not confirmed
                         if not order_info: 
@@ -346,7 +346,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             # await decrement_live_calls(restaurant_id)
                             # end_timer = time.time()
                             # order_info = await process_transcript_and_send(
-                            #     transcript, end_timer - start_timer, restaurant_id, menu_content, client_number
+                            #     transcript, end_timer - start_timer, restaurant_id, menu_content, client_number, call_sid
                             # )
 
                             # twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
@@ -410,14 +410,12 @@ async def send_session_update(openai_ws, system_message, VERBOSE=False):
 
 
 
-async def content_extraction(transcript, timer, restaurant_id, menu_content):
+async def content_extraction(transcript, timer, restaurant_id, menu_content, call_sid):
     """Make a ChatGPT API call and enforce schema using JSON."""
     logger.info("Starting Content Extraction...")
 
     restaurant_name = get_restaurant_name_by_restaurant_id(restaurant_id)
     
-    # Generate unique call ID
-    call_id = str(uuid.uuid4())
     montreal_tz = pytz.timezone('America/Montreal')
     current_time = datetime.datetime.now(montreal_tz).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -510,16 +508,16 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content):
                 arguments = json.loads(data["choices"][0]["message"]["function_call"]["arguments"])
 
                 # Enrich the response with generated values
-                arguments["call_id"] = call_id
+                arguments["call_sid"] = call_sid
                 arguments["timestamp"] = current_time
                 arguments["timer"] = timer
                 arguments['transcript'] = transcript #transcript with newlines
 
                 # Add formatted order_id to order_info + required info for the order
                 timestamp_seconds = int(datetime.datetime.now().timestamp())
-                arguments["order_info"]["order_id"] = f"ORD-{timestamp_seconds}-{call_id[-5:]}"
+                arguments["order_info"]["order_id"] = f"ORD-{timestamp_seconds}-{call_sid[-5:]}"
                 arguments['order_info']['timestamp'] = current_time
-                arguments['order_info']['call_id'] = call_id
+                arguments['order_info']['call_sid'] = call_sid
                 arguments['order_info']['restaurant_id'] = restaurant_id
                 arguments['order_info']['restaurant_name'] = restaurant_name
                 arguments['order_info']['customer_name'] = arguments['name']
@@ -561,27 +559,27 @@ async def send_to_webhook(payload):
             
 
 async def process_transcript_and_send(transcript, timer, 
-                                      restaurant_id, menu_content, client_number):
+                                      restaurant_id, menu_content, client_number, call_sid):
     """Process the transcript and send the extracted data to the webhook."""
     try:
         # Make the ChatGPT completion call
-        result = await content_extraction(transcript, timer, restaurant_id, menu_content)
+        result = await content_extraction(transcript, timer, restaurant_id, menu_content, call_sid)
 
         # Check if the response contains the expected data
         if result:
-            logger.info(f'Full result for call id ({result['call_id']}): {json.dumps(result, indent=2)}')
+            logger.info(f'Full result for call id ({result['call_sid']}): {json.dumps(result, indent=2)}')
 
             # Database connection setup
             connection = create_connection()
 
             # Insert call record
-            call_id = result["call_id"]
+            call_sid = result["call_sid"]
             restaurant_id = restaurant_id
             transcript_text = result["transcript"]
             confirmation = result.get("confirmation", False)
             timestamp = result["timestamp"]
             order_info = result["order_info"]
-            insert_call_record(connection, call_id, restaurant_id, 
+            insert_call_record(connection, call_sid, restaurant_id, 
                                transcript_text, timestamp, timer, confirmation)
 
             # Insert order record if confirmed
@@ -594,7 +592,7 @@ async def process_transcript_and_send(transcript, timer,
             close_connection(connection)
             
             if not confirmation:
-                logger.info(f'{'-' * 25} CALL ID ({call_id}) NOT CONFIRMED {"-" * 25}')
+                logger.info(f'{'-' * 25} CALL ID ({call_sid}) NOT CONFIRMED {"-" * 25}')
                 return  # Stop if the order was not confirmed
 
             try:
@@ -602,7 +600,7 @@ async def process_transcript_and_send(transcript, timer,
                 pdf_base64, receipt_width, receipt_height = generate_pdf_receipt(order_info)
                 payload = create_json_payload(document_base64=pdf_base64, 
                                             document_type='pdf',
-                                            ticket_id=call_id,
+                                            ticket_id=call_sid,
                                             paper_width_mm=receipt_width,
                                             paper_height_mm=receipt_height,)
 
@@ -619,7 +617,7 @@ async def process_transcript_and_send(transcript, timer,
                 mqtt_client.disconnect()
             
             except Exception as e:
-                logger.error(f"Error sending order for call id ({call_id}) to printer: {e}")
+                logger.error(f"Error sending order for call id ({call_sid}) to printer: {e}")
                 logger.info(f'\n{"-" * 75}\n')  # Logger separator
 
 

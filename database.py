@@ -36,15 +36,15 @@ def close_connection(connection):
         connection.close()
         logger.info("Database connection closed")
 
-def insert_call_record(connection, call_id, restaurant_id, transcript, 
+def insert_call_record(connection, call_sid, restaurant_id, transcript, 
                        timestamp, timer, confirmation):
     try:
         cursor = connection.cursor()
         query = """
-        INSERT INTO Calls (call_id, restaurant_id, transcript, timestamp, timer, confirmation)
+        INSERT INTO Calls (call_sid, restaurant_id, transcript, timestamp, timer, confirmation)
         VALUES (%s, %s, %s, %s, %s, %s)
         """
-        cursor.execute(query, (call_id, restaurant_id, transcript, 
+        cursor.execute(query, (call_sid, restaurant_id, transcript, 
                                timestamp, timer, confirmation))
         connection.commit()
         
@@ -56,7 +56,7 @@ def insert_call_record(connection, call_id, restaurant_id, transcript,
 def insert_order_record(connection, order_info):
     try:
         # logger.debug(f"order_id: {order_info.get('order_id')}")
-        # logger.debug(f"call_id: {order_info.get('call_id')}")
+        # logger.debug(f"call_sid: {order_info.get('call_sid')}")
         # logger.debug(f"restaurant_id: {order_info.get('restaurant_id')}")
         # logger.debug(f"customer_name: {order_info.get('customer_name')}")
         # logger.debug(f"phone_number: {order_info.get('phone_number')}")
@@ -66,12 +66,12 @@ def insert_order_record(connection, order_info):
 
         cursor = connection.cursor()
         query = """
-        INSERT INTO Orders (order_id, call_id, restaurant_id, customer_name, phone_number, pickup, pickup_or_delivery_time, timestamp)
+        INSERT INTO Orders (order_id, call_sid, restaurant_id, customer_name, phone_number, pickup, pickup_or_delivery_time, timestamp)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(query, (
             order_info["order_id"], 
-            order_info["call_id"], 
+            order_info["call_sid"], 
             order_info["restaurant_id"], 
             order_info["customer_name"],
             order_info["phone_number"],
@@ -137,7 +137,7 @@ def insert_twilio_recording(connection, call_sid, recording_url, recording_durat
         query = """
         UPDATE Calls
         SET recording_url = %s, recording_duration = %s
-        WHERE call_id = %s
+        WHERE call_sid = %s
         """
         cursor.execute(query, (recording_url, recording_duration, call_sid))
         connection.commit()
