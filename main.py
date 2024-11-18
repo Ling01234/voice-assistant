@@ -31,6 +31,12 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+ENV = os.getenv('ENVIRONMENT', 'prod') 
+
+if ENV == 'local':
+    WEBSOCKET_URL = "wss://6c91-142-113-68-84.ngrok-free.app/media-stream"
+else:
+    WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
 
 
 ### LOGGING CONFIG ###
@@ -42,10 +48,10 @@ if not os.path.exists("logs"):
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format=f"%(asctime)s - %(name)s - %(levelname)s - [ENV={ENV}] - %(message)s",
     handlers=[
-        logging.FileHandler(f"logs/{log_filename}", mode='a'),  # Append to log file
-        logging.StreamHandler()  # Also output logs to the console
+        logging.FileHandler(f"logs/{log_filename}", mode='a'),
+        logging.StreamHandler()
     ]
 )
 
@@ -147,7 +153,7 @@ async def handle_incoming_call(request: Request):
             response = VoiceResponse()
             response.say("Sorry, all our lines are currently busy. Please try again later.")
             return HTMLResponse(content=str(response), media_type="application/xml")
-            
+
         # Increment live call count for the restaurant
         await increment_live_calls(restaurant_id)
 
@@ -156,10 +162,13 @@ async def handle_incoming_call(request: Request):
         response.say(INITIAL_MESSAGE)
 
         connect = Connect()
+        logger.info('Before connect')
         connect.stream(
-            url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}'
+            url=f'{WEBSOCKET_URL}/{restaurant_id}/{client_number}/{call_sid}'
         )
         response.append(connect)
+        logger.info('After connect')
+        logger.info(f'response: {response}')
 
         return HTMLResponse(content=str(response), media_type="application/xml")
 
