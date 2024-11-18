@@ -85,22 +85,36 @@ async def index_page():
     return "<h1>Server is up and running. </h1>"
 
 @app.api_route("/incoming-call", methods=["GET", "POST"])
-async def handle_incoming_call(event: dict):
-    # Extract the body from the forwarded Lambda event
-    body = event.get("body", "")
-    is_base64_encoded = event.get("isBase64Encoded", False)
+async def handle_incoming_call(request: Request):
+    # Determine the content type of the request
+    content_type = request.headers.get("Content-Type", "")
+    parsed_data = {}
 
-    # Decode the Base64-encoded body if necessary
-    if is_base64_encoded:
-        decoded_bytes = base64.b64decode(body)
-        decoded_body = decoded_bytes.decode('utf-8')
+    if "application/json" in content_type:
+        # Lambda-forwarded JSON object
+        event = await request.json()
+        body = event.get("body", "")
+        is_base64_encoded = event.get("isBase64Encoded", False)
+
+        # Decode Base64-encoded body if necessary
+        if is_base64_encoded:
+            decoded_bytes = base64.b64decode(body)
+            decoded_body = decoded_bytes.decode('utf-8')
+        else:
+            decoded_body = body
+
+        # Parse the URL-encoded body into a dictionary
+        parsed_data = parse_qs(decoded_body)
+
+    elif "application/x-www-form-urlencoded" in content_type:
+        # Direct Twilio request via Ngrok
+        form_data = await request.form()
+        parsed_data = {key: value for key, value in form_data.items()}
+
     else:
-        decoded_body = body
+        raise HTTPException(status_code=400, detail="Unsupported Content-Type")
 
-    # Parse the decoded body as URL-encoded data
-    parsed_data = parse_qs(decoded_body)
-
-    # Extract the To and From number, handling list structure
+    # Extract necessary Twilio parameters
     twilio_number = parsed_data.get("To", [None])[0]
     client_number = parsed_data.get("From", [None])[0]
     call_sid = parsed_data.get("CallSid", [None])[0]
@@ -108,7 +122,7 @@ async def handle_incoming_call(event: dict):
     if not twilio_number:
         raise HTTPException(status_code=400, detail="Missing 'To' parameter in the request")
 
-    # Look up the restaurant_id based on the Twilio number
+    # Lookup restaurant ID based on Twilio number
     restaurant_id = get_restaurant_id_by_twilio_number(twilio_number)
     if not restaurant_id:
         raise HTTPException(status_code=404, detail="Restaurant not found for this number")
@@ -117,22 +131,26 @@ async def handle_incoming_call(event: dict):
     logger.info(f"Restaurant id: {restaurant_id}")
 
     try:
-        # Increment the live call count for this restaurant
+        # Increment live call count for the restaurant
         await increment_live_calls(restaurant_id)
 
-        # Allow the call and respond with a greeting
+        # Respond with a greeting using Twilio VoiceResponse
         response = VoiceResponse()
         response.say(INITIAL_MESSAGE)
 
         connect = Connect()
-        connect.stream(url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}')
+        connect.stream(
+            url=f'wss://angelsbot.net/media-stream/{restaurant_id}/{client_number}/{call_sid}'
+        )
         response.append(connect)
 
         return HTMLResponse(content=str(response), media_type="application/xml")
 
     except Exception as e:
-        await decrement_live_calls(restaurant_id)  # decrement even if there is an error
+        # Decrement live calls in case of an error
+        await decrement_live_calls(restaurant_id)
         logger.error(f"Error handling incoming call: {e}")
+        raise HTTPException(status_code=500, detail="Error processing the call")
 
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
