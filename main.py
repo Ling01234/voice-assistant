@@ -162,13 +162,10 @@ async def handle_incoming_call(request: Request):
         response.say(INITIAL_MESSAGE)
 
         connect = Connect()
-        logger.info('Before connect')
         connect.stream(
             url=f'{WEBSOCKET_URL}/{restaurant_id}/{client_number}/{call_sid}'
         )
         response.append(connect)
-        logger.info('After connect')
-        logger.info(f'response: {response}')
 
         return HTMLResponse(content=str(response), media_type="application/xml")
 
@@ -203,15 +200,17 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
             recording_channels="dual"  # Optional: record both sides of the conversation
         )
         
-        if VERBOSE:
-            logger.info(f"Recording initiated for call SID {call_sid}. Recording SID: {recording.sid}")
+        # if VERBOSE:
+        #     logger.info(f"Recording initiated for call SID {call_sid}. Recording SID: {recording.sid}")
 
     except Exception as e:
         logger.error(f"Failed to enable recording for call SID {call_sid}: {e}", exc_info=True)
 
     # Proceed with WebSocket interaction
     menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id))
-    logger.info(f'Menu file path: {menu_file_path}')
+
+    if VERBOSE:
+        logger.info(f'Menu file path: {menu_file_path}')
     if not menu_file_path:
         raise HTTPException(status_code=404, detail="Menu file path not found for this restaurant")
     
