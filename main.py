@@ -803,7 +803,7 @@ async def twilio_recording(request: Request):
 
     # Convert form data to a dictionary for logging
     form_dict = {key: value for key, value in form_data.items()}
-    logger.info(f"Twilio recording webhook data: {json.dumps(form_dict, indent=2)}")
+    # logger.info(f"Twilio recording webhook data: {json.dumps(form_dict, indent=2)}")
 
     # Extract individual parameters
     call_sid = form_dict.get("CallSid")
