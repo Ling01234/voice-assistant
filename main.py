@@ -641,6 +641,12 @@ async def process_transcript_and_send(transcript, timer,
             try:
                 # generate pdf receipt and payload
                 pdf_base64, receipt_width, receipt_height = generate_pdf_receipt(order_info)
+
+                # save to local folder
+                pdf_data = base64.b64decode(pdf_base64)
+                with open('receipt.pdf', "wb") as f:
+                    f.write(pdf_data)
+
                 payload = create_json_payload(document_base64=pdf_base64, 
                                             document_type='pdf',
                                             ticket_id=call_sid,
