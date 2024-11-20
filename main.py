@@ -58,7 +58,7 @@ logging.basicConfig(
 logger = logging.getLogger("voice-assistant-app")
 
 VERBOSE = False
-VERBOSE_TRANSCRIPT = False
+VERBOSE_TRANSCRIPT = True
 VOICE = 'alloy'
 MODEL_TEMPERATURE = 0.7 # must be [0.6, 1.2]
 INITIAL_MESSAGE = "Hi, how can I help you today?"
