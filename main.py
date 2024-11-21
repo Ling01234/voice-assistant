@@ -38,25 +38,6 @@ if ENV == 'local':
 else:
     WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
 
-
-### LOGGING CONFIG ###
-log_filename = datetime.datetime.now().strftime("logs_%Y_%m.log")
-
-# Configure logging
-if not os.path.exists("logs"):
-    os.makedirs("logs")  # Create a "logs" directory if it doesn't exist
-
-logging.basicConfig(
-    level=logging.INFO,
-    format=f"%(asctime)s - %(name)s - %(levelname)s - [ENV={ENV}] - %(message)s",
-    handlers=[
-        logging.FileHandler(f"logs/{log_filename}", mode='a'),
-        logging.StreamHandler()
-    ]
-)
-
-logger = logging.getLogger("voice-assistant-app")
-
 VERBOSE = False
 VERBOSE_TRANSCRIPT = True
 VOICE = 'alloy'
@@ -76,6 +57,27 @@ LOG_EVENT_TYPES = [
     "response.function_call_arguments.done", 
     "conversation.item.created",
 ]
+
+### LOGGING CONFIG ###
+log_filename = datetime.datetime.now().strftime("logs_%Y_%m.log")
+
+# Configure logging
+if not os.path.exists("logs"):
+    os.makedirs("logs")  # Create a "logs" directory if it doesn't exist
+
+logging.basicConfig(
+    level=logging.INFO,
+    format=f"%(asctime)s - %(name)s - %(levelname)s - [ENV={ENV}] - %(message)s",
+    handlers=[
+        logging.FileHandler(f"logs/{log_filename}", mode='a'),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger("voice-assistant-app")
+
+if not VERBOSE:
+    logging.getLogger("twilio.http_client").setLevel(logging.WARNING)
 
 app = FastAPI()
 
@@ -301,7 +303,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                     await openai_ws.close()
 
             except Exception as e:
-                logger.error(f"Error in receive_from_twilio: {e}")
+                logger.error(f"Error in receive_from_twilio: {e}", exc_info=True)
                 logger.info(f'\n{"-" * 75}\n')  # Logger separator
                 
 
@@ -401,7 +403,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             return
 
             except Exception as e:
-                logger.error(f"Error in send_to_twilio: {e}")
+                logger.error(f"Error in send_to_twilio: {e}", exc_info=True)
             
             finally:
                 # Ensure OpenAI WebSocket is closed if still open
