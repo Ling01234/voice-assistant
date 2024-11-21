@@ -46,6 +46,10 @@ async def decrement_live_calls(restaurant_id: int) -> None:
     # Decrement the count, ensuring it doesn’t go below zero
     if live_calls.get(str(restaurant_id), 0) > 0:
         live_calls[str(restaurant_id)] -= 1
+        
+    # remove the restaurant from the dictionary if the count is zero
+    if live_calls.get(str(restaurant_id), 0) == 0:
+        del live_calls[str(restaurant_id)]
 
     # Save the updated JSON back to Redis
     await redis_client.set(LIVE_CALLS_KEY, json.dumps(live_calls))
