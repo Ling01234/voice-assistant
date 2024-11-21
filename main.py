@@ -485,7 +485,10 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 4. pickup or delivery time
                 5. order information (item name, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it as an empty string.
                 
-                All information must be extracted from the given transcript below. If any is missing, simply leave it empty. NEVER MAKE UP ANY INFORMATION. Also, note that the transcript is a real-time conversation between a customer and the AI, so extract the information as accurately as possible. Be especially careful with the name of the customer. 
+                All information must be extracted from the given transcript below, and pay close attention to the following details:
+                1. If any is missing, simply leave it empty. NEVER MAKE UP ANY INFORMATION. 
+                2. Note that the transcript is a real-time conversation between a customer and the AI, so extract the information as accurately as possible. Be especially careful with the name of the customer. 
+                3. Be careful and accurate for combo orders. For example, if the customer orders a combo meal or a party pack, make sure that this is extracted correctly in the order information. One of the worst thing you can do is to charge the client for many items individually rather than the discounted combo price. 
                 
                 Finally, determine if the order was placed, or if it was a mis-dial, or if the user hung up before finishing and confirming the order. Store this in a 'confirmation' key (as a boolean) if the order seems to have been placed by the user.
                 
