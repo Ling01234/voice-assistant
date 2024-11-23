@@ -40,6 +40,7 @@ else:
 
 VERBOSE = False
 VERBOSE_TRANSCRIPT = True
+RECORDING = True
 VOICE = 'alloy'
 MODEL_TEMPERATURE = 0.7 # must be [0.6, 1.2]
 INITIAL_MESSAGE = "Hi, how can I help you today?"
@@ -194,13 +195,14 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                 logger.error(f"Call SID {call_sid} is not in progress. Current status: {call.status}")
                 raise Exception("Call is not in a valid state for recording")
 
-        # Enable recording for the call with a status callback
-        recording = client.calls(call_sid).recordings.create(
-            recording_status_callback="https://angelsbot.net/twilio-recording",
-            recording_status_callback_method="POST",
-            recording_status_callback_event=["completed"],  # Trigger on recording completion
-            recording_channels="dual"  # Optional: record both sides of the conversation
-        )
+        if RECORDING:
+            # Enable recording for the call with a status callback
+            recording = client.calls(call_sid).recordings.create(
+                recording_status_callback="https://angelsbot.net/twilio-recording",
+                recording_status_callback_method="POST",
+                recording_status_callback_event=["completed"],  # Trigger on recording completion
+                recording_channels="dual"  # Optional: record both sides of the conversation
+            )
         
         # if VERBOSE:
         #     logger.info(f"Recording initiated for call SID {call_sid}. Recording SID: {recording.sid}")
