@@ -476,7 +476,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
     # Request payload with enforced JSON schema
     payload = {
         # "model": "gpt-3.5-turbo",
-        "model": "gpt-4o-2024-08-06",
+        "model": "gpt-4o", # always points to latest model
         "messages": [
             {
                 "role": "system",
