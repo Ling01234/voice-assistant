@@ -238,7 +238,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         4. Whether the order is going to be picked up or delivered. If it's for delivery, you need to ask for the delivery address.
         5. The corresponding time for pickup or delivery. If the client responds with "as soon as possible", "right now", "how long will it take?" or similar questions, you should tell them that it will take approximately {wait_time} minutes.
         6. If a client has already confirmed some of the information above (such as some ordered items), you do not need to repeat it back to them again.
-        7. At the end, you should ask if there is anything else you can do for them, or if that's it. If the client says that's it, you should thank them for their order and tell them to have a great day. You may end the call after this using the custom function 'end_twilio_call'.
+        7. At the end, you should ask if there is anything else you can do for them, or if that's it. If the client says that's it, you should thank them for their order and tell them to have a great day.
 
         Below are the extracted content from the menu. Be very careful and accurate when providing information from the menu.\n {menu_content}
         """
