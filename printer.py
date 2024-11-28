@@ -13,12 +13,12 @@ logger = logging.getLogger("voice-assistant-app")
 load_dotenv()
 
 # Retrieve MQTT configuration from environment variables
-broker_address = os.getenv("MQTT_BROKER_IP")
-port = int(os.getenv("MQTT_BROKER_PORT"))
-username = os.getenv("MQTT_USERNAME")
-password = os.getenv("MQTT_PASSWORD")
-client_id = os.getenv("MQTT_CLIENT_ID")
-qos = int(os.getenv("MQTT_QOS"))
+BROKER_IP = os.getenv("MQTT_BROKER_IP")
+BROKER_PORT = int(os.getenv("MQTT_BROKER_PORT"))
+BROKER_USERNAME = os.getenv("MQTT_USERNAME")
+BROKER_PASSWORD = os.getenv("MQTT_PASSWORD")
+BROKER_CLIENT_ID = os.getenv("MQTT_CLIENT_ID")
+BROKER_QOS = int(os.getenv("MQTT_QOS"))
 
 
 def pdf_to_base64(file_path):
@@ -87,11 +87,11 @@ def connect_mqtt():
             logger.info("Connected to MQTT Broker!")
         else:
             logger.info("Failed to connect to MQTT,Return code %d\n ",rc)
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=client_id)
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=BROKER_CLIENT_ID)
     client.on_connect = on_connect
-    client.username_pw_set(username,password)
-    client.connect(broker_address,port,qos)
-    # logger.info(f'Connecting to MQTT broker at {broker_address}:{port}')
+    client.username_pw_set(BROKER_USERNAME,BROKER_PASSWORD)
+    client.connect(BROKER_IP,BROKER_PORT,BROKER_QOS)
+    # logger.info(f'Connecting to MQTT broker at {BROKER_IP}:{BROKER_PORT}')
     return client
 
 #publsh the manager to printer
