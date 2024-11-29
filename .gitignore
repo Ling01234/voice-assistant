@@ -17,7 +17,7 @@ libraries/packages.zip
 /*.txt
 menus/
 !requirements.txt
-
+local_test.md
 
 
 # C extensions
