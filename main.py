@@ -32,9 +32,10 @@ WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 ENV = os.getenv('ENVIRONMENT', 'prod') 
+FORWARD_PHONE_NUMBER = '+15149109347'
 
 if ENV == 'local':
-    WEBSOCKET_URL = "wss://6c91-142-113-68-84.ngrok-free.app/media-stream"
+    WEBSOCKET_URL = "wss://c9e5-142-113-68-84.ngrok-free.app/media-stream"
 else:
     WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
 
@@ -404,6 +405,14 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             if openai_ws.open:
                                 await openai_ws.close()
                             return
+                        
+                        if response['item']['name'] == 'forward_to_live_agent':
+                            await forward_to_live_agent(call_sid, FORWARD_PHONE_NUMBER)
+
+                            # Close WebSocket connection gracefully
+                            if openai_ws.open:
+                                await openai_ws.close()
+                            return
 
             except Exception as e:
                 logger.error(f"Error in send_to_twilio: {e}", exc_info=True)
@@ -445,6 +454,19 @@ async def send_session_update(openai_ws, system_message, VERBOSE=False):
                         "properties": {
                             "call_sid": {"type": "string"}
                         }
+                    }
+                },
+                {
+                    "type": "function",
+                    "name": "forward_to_live_agent",
+                    "description": "Forwards the call to a live agent at a specified phone number if the user requests so. The user may also refer them to real person, real human, etc.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "call_sid": {"type": "string"},
+                            "forward_to": {"type": "string"}
+                        },
+                        "required": ["call_sid", "forward_to"]
                     }
                 }
             ]
@@ -585,30 +607,6 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
             raise
 
 
-async def send_to_webhook(payload):
-    """Send data to Make.com webhook."""
-    logger.info(f"Sending data to webhook: {json.dumps(payload, indent=2)}")
-
-    async with aiohttp.ClientSession() as session:
-        try:
-            # Send a POST request to the webhook URL
-            async with session.post(
-                WEBHOOK_URL,
-                headers={"Content-Type": "application/json"},
-                json=payload
-            ) as response:
-
-                logger.info(f"Webhook response status: {response.status}")
-                if response.status == 200:
-                    logger.info("Data successfully sent to webhook.")
-                else:
-                    logger.warning(f"Failed to send data to webhook: {response.reason}")
-
-        except Exception as error:
-            logger.error(f"Error sending data to webhook: {error}")
-            logger.info(f'\n{"-" * 75}\n')  # Logger separator
-            
-
 async def process_transcript_and_send(transcript, timer, 
                                       restaurant_id, menu_content, client_number, call_sid):
     """Process the transcript and send the extracted data to the webhook."""
@@ -691,45 +689,45 @@ async def process_transcript_and_send(transcript, timer,
         
 
 
-async def send_order_to_lambda(order_info):
-    """Asynchronously send order information to AWS Lambda via webhook and handle PDF response."""
-    lambda_url = os.getenv("AWS_LAMBDA_URL")  # Get the Lambda URL from environment variables
+# async def send_order_to_lambda(order_info):
+#     """Asynchronously send order information to AWS Lambda via webhook and handle PDF response."""
+#     lambda_url = os.getenv("AWS_LAMBDA_URL")  # Get the Lambda URL from environment variables
 
-    headers = {
-        "Content-Type": "application/json"
-    }
+#     headers = {
+#         "Content-Type": "application/json"
+#     }
 
-    async with aiohttp.ClientSession() as session:
-        try:
-            logger.info("Sending order info to AWS Lambda...")
-            async with session.post(lambda_url, headers=headers, json=order_info) as response:
+#     async with aiohttp.ClientSession() as session:
+#         try:
+#             logger.info("Sending order info to AWS Lambda...")
+#             async with session.post(lambda_url, headers=headers, json=order_info) as response:
                 
-                # If the response is successful (status code 200)
-                if response.status == 200:
-                    content_type = response.headers.get("Content-Type")
+#                 # If the response is successful (status code 200)
+#                 if response.status == 200:
+#                     content_type = response.headers.get("Content-Type")
                     
-                    # If the response is a PDF (application/pdf)
-                    if content_type == "application/pdf":
-                        # Read the PDF content as bytes
-                        pdf_content = await response.read()
+#                     # If the response is a PDF (application/pdf)
+#                     if content_type == "application/pdf":
+#                         # Read the PDF content as bytes
+#                         pdf_content = await response.read()
 
-                        # Save the PDF to a local file
-                        with open("receipt.pdf", "wb") as pdf_file:
-                            pdf_file.write(pdf_content)
+#                         # Save the PDF to a local file
+#                         with open("receipt.pdf", "wb") as pdf_file:
+#                             pdf_file.write(pdf_content)
 
-                        # logger.info("PDF receipt successfully received and saved as 'receipt.pdf'.")
-                        logger.info(f'\n{"-" * 75}\n')  # Logger separator
-                    else:
-                        logger.warning(f"Unexpected content type: {content_type}")
+#                         # logger.info("PDF receipt successfully received and saved as 'receipt.pdf'.")
+#                         logger.info(f'\n{"-" * 75}\n')  # Logger separator
+#                     else:
+#                         logger.warning(f"Unexpected content type: {content_type}")
                 
-                else:
-                    logger.warning(f"Failed to send order. Status Code: {response.status}")
-                    text_response = await response.text()
-                    logger.warning(f"Response: {text_response}")
+#                 else:
+#                     logger.warning(f"Failed to send order. Status Code: {response.status}")
+#                     text_response = await response.text()
+#                     logger.warning(f"Response: {text_response}")
 
-        except aiohttp.ClientError as e:
-            logger.error(f"Error sending order to Lambda: {e}")
-            logger.info(f'\n{"-" * 75}\n')  # Logger separator
+#         except aiohttp.ClientError as e:
+#             logger.error(f"Error sending order to Lambda: {e}")
+#             logger.info(f'\n{"-" * 75}\n')  # Logger separator
             
 
 async def send_sms_from_twilio(to, from_, body):
@@ -810,6 +808,27 @@ async def end_twilio_call(call_sid):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     call = client.calls(call_sid).update(status='completed')
     logger.info(f'Call ended by AI: {call.status}')
+
+async def forward_to_live_agent(call_sid: str, forward_to: str):
+    """
+    Forward the ongoing call to a live agent.
+    """
+    logger.info(f"Forwarding call SID {call_sid} to live agent at {forward_to}...")
+    try:
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        call = client.calls(call_sid).update(
+            twiml=f"""
+            <Response>
+                <Dial record="record-from-ringing">
+                    {forward_to}
+                </Dial>
+            </Response>
+            """
+        )
+        logger.info(f"Call forwarded successfully to {forward_to}: {call.status}")
+    except Exception as e:
+        logger.error(f"Error forwarding call SID {call_sid} to live agent: {e}")
+        raise
 
 @app.post("/twilio-recording")
 async def twilio_recording(request: Request):
