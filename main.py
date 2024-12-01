@@ -23,6 +23,8 @@ from dotenv import load_dotenv
 import uvicorn
 import logging
 from redis_handler import *
+from audio import preprocess_audio
+
 
 load_dotenv()
 
@@ -276,16 +278,24 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
         async def receive_from_twilio():
             nonlocal stream_sid, transcript, forward
+            frame_buffer = []
+            buffer_limit = 5
+            
             try:
-                async for message in websocket.iter_text():
+                async for message in websocket.iter_text(): 
                     data = json.loads(message)
 
                     if data['event'] == 'media' and openai_ws.open:
+                        # Pre-process audio before sending
+                        raw_audio = data['media']['payload']
+                        processed_audio = preprocess_audio(raw_audio)
+                        
                         audio_append = {
                             "type": "input_audio_buffer.append",
-                            "audio": data['media']['payload']
+                            "audio": processed_audio
                         }
                         await openai_ws.send(json.dumps(audio_append))
+
 
                     elif data['event'] == 'start':
                         stream_sid = data['start']['streamSid']
@@ -522,7 +532,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 5. order information (item name, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it as an empty string.
                 
                 All information must be extracted from the given transcript below, and pay close attention to the following details:
-                1. If any is missing, simply leave it empty. NEVER MAKE UP ANY INFORMATION. 
+                1. If any information is missing, you must leave it empty. NEVER MAKE UP ANY INFORMATION. 
                 2. Note that the transcript is a real-time conversation between a customer and the AI, so extract the information as accurately as possible. Be especially careful with the name of the customer. 
                 3. Be careful and accurate for combo orders. For example, if the customer orders a combo meal or a party pack, make sure that this is extracted correctly in the order information. One of the worst thing you can do is to charge the client for many items individually rather than the discounted combo price. 
                 
