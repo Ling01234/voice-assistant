@@ -18,6 +18,7 @@ libraries/packages.zip
 menus/
 !requirements.txt
 local_test.md
+random/
 
 
 # C extensions

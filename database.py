@@ -37,15 +37,15 @@ def close_connection(connection):
         logger.info("Database connection closed")
 
 def insert_call_record(connection, call_sid, restaurant_id, transcript, 
-                       timestamp, timer, confirmation):
+                       timestamp, timer, confirmation, forward):
     try:
         cursor = connection.cursor()
         query = """
-        INSERT INTO Calls (call_sid, restaurant_id, transcript, timestamp, timer, confirmation)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO Calls (call_sid, restaurant_id, transcript, timestamp, timer, confirmation, call_forwarded)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(query, (call_sid, restaurant_id, transcript, 
-                               timestamp, timer, confirmation))
+                               timestamp, timer, confirmation, forward))
         connection.commit()
         
         if VERBOSE:
@@ -292,3 +292,23 @@ def get_twilio_number_by_restaurant_id(restaurant_id):
         if connection and connection.is_connected():
             connection.close()
             
+def get_forward_phone_number_by_restaurant_id(restaurant_id):
+    connection = create_connection()
+    if not connection:
+        logger.error("Failed to connect to the database")
+        return None
+
+    try:
+        cursor = connection.cursor()
+        query = """
+        SELECT forward_number FROM Restaurants WHERE restaurant_id = %s
+        """
+        cursor.execute(query, (restaurant_id,))
+        result = cursor.fetchone()
+        return result[0] if result else None
+    except Error as e:
+        logger.error(f"Error retrieving name for restaurant_id {restaurant_id}: {e}")
+        return None
+    finally:
+        if connection and connection.is_connected():
+            connection.close()

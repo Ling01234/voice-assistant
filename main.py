@@ -32,15 +32,10 @@ WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 ENV = os.getenv('ENVIRONMENT', 'prod') 
-FORWARD_PHONE_NUMBER = '+15149109347'
 
-if ENV == 'local':
-    WEBSOCKET_URL = "wss://c9e5-142-113-68-84.ngrok-free.app/media-stream"
-else:
-    WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
 
 VERBOSE = False
-VERBOSE_TRANSCRIPT = True
+VERBOSE_TRANSCRIPT = False
 RECORDING = True
 VOICE = 'alloy'
 MODEL_TEMPERATURE = 0.7 # must be [0.6, 1.2]
@@ -59,6 +54,12 @@ LOG_EVENT_TYPES = [
     "response.function_call_arguments.done", 
     "conversation.item.created",
 ]
+
+if ENV == 'local':
+    WEBSOCKET_URL = "wss://c9e5-142-113-68-84.ngrok-free.app/media-stream"
+    VERBOSE_TRANSCRIPT = True
+else:
+    WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
 
 ### LOGGING CONFIG ###
 log_filename = datetime.datetime.now().strftime("logs_%Y_%m.log")
@@ -231,6 +232,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         4. You should avoid giving any prices during the conversation, except it the client explicitly asks for it. 
         5. Make sure to carefully listen to the client's messages, such as when they give you their name. If you are unsure, politely ask them to repeat themselves.
         6. It is extremely important to stick to the menu below when giving out recommendations or taking orders. If the client asks for something that is not on the menu, politely inform them that it is not available. More importantly, you should never recommend something that is not on the menu.
+        7. If a client asks for the phone call to be forwarded, you should let them know that you will transfer them to a live agent, and for them to hold the line.
         
         At the end of the call, you should repeat the order to the client and confirm the following:
         1. The client's name.
@@ -248,6 +250,12 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         logger.info(f'\n{"-" * 75}\n')  # Logger separator
         raise HTTPException(status_code=500, detail="Failed to retrieve menu from S3")
 
+    # fetch the forward phone number
+    forward_phone_number = get_forward_phone_number_by_restaurant_id(restaurant_id)
+    if not forward_phone_number:
+        raise HTTPException(status_code=404, detail="Forward phone number not found for this restaurant")
+    
+    
     start_timer = time.time()
     await websocket.accept()
 
@@ -263,9 +271,10 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
         stream_sid = None
         transcript = ""
+        forward = False
 
         async def receive_from_twilio():
-            nonlocal stream_sid, transcript
+            nonlocal stream_sid, transcript, forward
             try:
                 async for message in websocket.iter_text():
                     data = json.loads(message)
@@ -290,7 +299,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
                         # logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
-                        order_info = await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id, menu_content, client_number, call_sid)
+                        order_info = await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id, menu_content, client_number, call_sid, forward)
                         
                         # if order not confirmed
                         if not order_info: 
@@ -318,7 +327,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                     await openai_ws.close()
 
         async def send_to_twilio():
-            nonlocal stream_sid, transcript
+            nonlocal stream_sid, transcript, forward
             try:
                 async for openai_message in openai_ws:
                     response = json.loads(openai_message)
@@ -395,7 +404,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             # await decrement_live_calls(restaurant_id)
                             # end_timer = time.time()
                             # order_info = await process_transcript_and_send(
-                            #     transcript, end_timer - start_timer, restaurant_id, menu_content, client_number, call_sid
+                            #     transcript, end_timer - start_timer, restaurant_id, menu_content, client_number, call_sid, forward
                             # )
 
                             # twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
@@ -407,7 +416,8 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             return
                         
                         if response['item']['name'] == 'forward_to_live_agent':
-                            await forward_to_live_agent(call_sid, FORWARD_PHONE_NUMBER)
+                            forward = True
+                            await forward_to_live_agent(call_sid, forward_phone_number)
 
                             # Close WebSocket connection gracefully
                             if openai_ws.open:
@@ -608,7 +618,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
 
 
 async def process_transcript_and_send(transcript, timer, 
-                                      restaurant_id, menu_content, client_number, call_sid):
+                                      restaurant_id, menu_content, client_number, call_sid, forward):
     """Process the transcript and send the extracted data to the webhook."""
     try:
         # Make the ChatGPT completion call
@@ -625,11 +635,17 @@ async def process_transcript_and_send(transcript, timer,
             call_sid = result["call_sid"]
             restaurant_id = restaurant_id
             transcript_text = result["transcript"]
-            confirmation = result.get("confirmation", False)
+
+            # make sure confirmation is False if call is forwarded
+            if forward: 
+                confirmation = False
+            else:
+                confirmation = result.get("confirmation", False)
+
             timestamp = result["timestamp"]
             order_info = result["order_info"]
             insert_call_record(connection, call_sid, restaurant_id, 
-                               transcript_text, timestamp, timer, confirmation)
+                               transcript_text, timestamp, timer, confirmation, forward)
 
             # Insert order record if confirmed
             if confirmation:
