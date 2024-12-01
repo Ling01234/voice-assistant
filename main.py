@@ -253,6 +253,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
     # fetch the forward phone number
     forward_phone_number = get_forward_phone_number_by_restaurant_id(restaurant_id)
     if not forward_phone_number:
+        logger.error(f'Forward phone number not found for restaurant id: {restaurant_id}, call sid: {call_sid}')
         raise HTTPException(status_code=404, detail="Forward phone number not found for this restaurant")
     
     
