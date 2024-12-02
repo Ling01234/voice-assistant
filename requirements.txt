@@ -5,6 +5,7 @@ fastapi==0.115.4
 paho_mqtt==2.1.0
 python-dotenv==1.0.1
 redis==5.0.4
+ipykernel
 reportlab==4.2.0
 twilio==9.3.6
 uvicorn==0.32.0
