@@ -11,6 +11,7 @@ uvicorn==0.32.0
 mysql-connector-python
 pydub
 soundfile
+openai
 scipy
 numpy
 python-multipart

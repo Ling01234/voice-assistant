@@ -1,12 +1,20 @@
-@app.api_route("/incoming-message", methods=["GET", "POST"])
-async def handle_incoming_message(request: Request):
-    data = await request.json()
-    logger.info(f'Incoming message: {data}')
-    # Create a Twilio MessagingResponse object
-    response = MessagingResponse()
-    
-    # Add a message to reply with "Hello"
-    response.message("Hello")
-    
-    # Return the TwiML response as XML
-    return HTMLResponse(content=str(response), media_type="application/xml")
+from pathlib import Path
+from openai import OpenAI
+from main import INITIAL_MESSAGE
+
+
+def update_initial_message():
+    client = OpenAI()
+    speech_file_path = Path(__file__).parent / "initial message temp.mp3"
+
+
+    with client.audio.speech.with_streaming_response.create(
+    model="tts-1-hd",
+    voice="alloy",
+    input=INITIAL_MESSAGE
+    ) as response:
+        response.stream_to_file(speech_file_path)
+
+
+if __name__ == "__main__":
+    update_initial_message()
