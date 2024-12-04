@@ -60,7 +60,7 @@ LOG_EVENT_TYPES = [
 ]
 
 if ENV == 'local':
-    WEBSOCKET_URL = "wss://6aad-142-113-68-84.ngrok-free.app/media-stream"
+    WEBSOCKET_URL = os.getenv('WEBSOCKET_URL') # moved to .env file
     VERBOSE_TRANSCRIPT = True
 else:
     WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
