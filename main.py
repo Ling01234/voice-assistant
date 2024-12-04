@@ -23,6 +23,10 @@ from dotenv import load_dotenv
 import uvicorn
 import logging
 from redis_handler import *
+from audio import preprocess_audio
+from pydub import AudioSegment
+import audioop
+
 
 load_dotenv()
 
@@ -56,7 +60,7 @@ LOG_EVENT_TYPES = [
 ]
 
 if ENV == 'local':
-    WEBSOCKET_URL = "wss://c9e5-142-113-68-84.ngrok-free.app/media-stream"
+    WEBSOCKET_URL = "wss://6aad-142-113-68-84.ngrok-free.app/media-stream"
     VERBOSE_TRANSCRIPT = True
 else:
     WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
@@ -164,7 +168,7 @@ async def handle_incoming_call(request: Request):
 
         # Respond with a greeting using Twilio VoiceResponse
         response = VoiceResponse()
-        response.say(INITIAL_MESSAGE)
+        # response.say(INITIAL_MESSAGE)
 
         connect = Connect()
         connect.stream(
@@ -225,7 +229,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         wait_time = await calculate_wait_time()
         menu_content = fetch_file_from_s3(menu_file_path)
         system_message = f"""
-        You are a friendly and experienced waiter at a restaurant taking orders, and you provide accurate information and helpful recommendations. At the beginning of the call, the customer's first response is to respond to the initial message: {INITIAL_MESSAGE}. During the call, if you do not understand the client's question or message or if the message seems to have been cutoff, you should politely ask them to repeat themselves. You should also keep the following points in mind during the conversation with the client:
+        You are a friendly and experienced waiter at a restaurant taking orders, and you provide accurate information and helpful recommendations. At the beginning of the call, the customer's first response is in response to the initial message: {INITIAL_MESSAGE} (therefore you don't need to greet them again). During the call, if you do not understand the client's question or message or if the message seems to have been cutoff, you should politely ask them to repeat themselves. You should also keep the following points in mind during the conversation with the client:
         1. Keep the conversation more generic, and do not go into specifics unless the client asks for specific information. This will make the conversation flow better. 
         2. If you need to ask the client for information, stick to asking 1 piece of information per request if possible. It's very important to split up the questions to avoid overwhelming the client.
         3. You should behave like an experienced waiter, and ask meaningful follow up questions when necessary. For example, if a client orders a steak, you should ask them about the desired level of doneness. If a client orders a coffee, you should ask them if they want any milk or sugar. If a client orders a salad, you should ask them about the dressing. If a client orders a soft drink, you should ask them which one and if they want ice.
@@ -276,20 +280,52 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
         async def receive_from_twilio():
             nonlocal stream_sid, transcript, forward
+
+            async def send_initial_message_audio():
+                try:
+                    # Load and process the MP3 file
+                    initial_message_audio = AudioSegment.from_mp3("initial message.mp3")
+                    initial_message_audio = initial_message_audio.set_frame_rate(8000).set_channels(1)
+                    raw_audio_data = initial_message_audio.raw_data
+                    mu_law_audio_data = audioop.lin2ulaw(raw_audio_data, 2)  # 2 bytes per sample (16 bits)
+                    chunk_size = 160  # 20ms of audio
+
+                    for i in range(0, len(mu_law_audio_data), chunk_size):
+                        chunk = mu_law_audio_data[i:i+chunk_size]
+                        base64_chunk = base64.b64encode(chunk).decode('utf-8')
+                        media_message = {
+                            "event": "media",
+                            "streamSid": stream_sid,
+                            "media": {
+                                "payload": base64_chunk
+                            }
+                        }
+                        await websocket.send_json(media_message)
+                        # Sleep for 20ms to simulate real-time streaming
+                        await asyncio.sleep(0.02)
+                except Exception as e:
+                    logger.error(f"Error sending initial message audio: {e}", exc_info=True)
+            
             try:
-                async for message in websocket.iter_text():
+                async for message in websocket.iter_text(): 
                     data = json.loads(message)
 
                     if data['event'] == 'media' and openai_ws.open:
+                        # Pre-process audio before sending
+                        raw_audio = data['media']['payload']
+                        # raw_audio = preprocess_audio(raw_audio)
+                        
                         audio_append = {
                             "type": "input_audio_buffer.append",
-                            "audio": data['media']['payload']
+                            "audio": raw_audio
                         }
                         await openai_ws.send(json.dumps(audio_append))
+
 
                     elif data['event'] == 'start':
                         stream_sid = data['start']['streamSid']
                         logger.info(f"Incoming stream has started {stream_sid}")
+                        await send_initial_message_audio()
 
                     elif data['event'] == 'stop':
                         # Extract summary after call ends
@@ -442,7 +478,8 @@ async def send_session_update(openai_ws, system_message, VERBOSE=False):
         "session": {
             "turn_detection": {
                     "type": "server_vad",
-                    "threshold": 0.7, # higher threshold will required louder audio to activate model
+                    "threshold": 0.8, # [0, 1,0] higher threshold will required louder audio to activate model
+                    "prefix_padding_ms": 500, # duration of audio to send before speech start (ms)
                     "silence_duration_ms": 500 # duration of silence to detect speech stop (ms)
                 },
             "input_audio_format": "g711_ulaw",
@@ -521,8 +558,8 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 4. pickup or delivery time
                 5. order information (item name, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it as an empty string.
                 
-                All information must be extracted from the given transcript below, and pay close attention to the following details:
-                1. If any is missing, simply leave it empty. NEVER MAKE UP ANY INFORMATION. 
+                All information must be extracted from the given transcript, and pay close attention to the following details:
+                1. If any information is missing, such as the name, pickup time, or anything else, you must leave it empty. NEVER EVER MAKE UP ANY INFORMATION. 
                 2. Note that the transcript is a real-time conversation between a customer and the AI, so extract the information as accurately as possible. Be especially careful with the name of the customer. 
                 3. Be careful and accurate for combo orders. For example, if the customer orders a combo meal or a party pack, make sure that this is extracted correctly in the order information. One of the worst thing you can do is to charge the client for many items individually rather than the discounted combo price. 
                 

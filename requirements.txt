@@ -9,5 +9,12 @@ ipykernel
 reportlab==4.2.0
 twilio==9.3.6
 uvicorn==0.32.0
+mysql-connector-python
+pydub
+soundfile
+openai
+scipy
+numpy
+python-multipart
 websockets==13.1
 pytz==2024.1
