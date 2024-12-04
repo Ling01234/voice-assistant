@@ -58,7 +58,7 @@ LOG_EVENT_TYPES = [
 ]
 
 if ENV == 'local':
-    WEBSOCKET_URL = "wss://c9e5-142-113-68-84.ngrok-free.app/media-stream"
+    WEBSOCKET_URL = "wss://6aad-142-113-68-84.ngrok-free.app/media-stream"
     VERBOSE_TRANSCRIPT = True
 else:
     WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
@@ -288,11 +288,11 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                     if data['event'] == 'media' and openai_ws.open:
                         # Pre-process audio before sending
                         raw_audio = data['media']['payload']
-                        processed_audio = preprocess_audio(raw_audio)
+                        # raw_audio = preprocess_audio(raw_audio)
                         
                         audio_append = {
                             "type": "input_audio_buffer.append",
-                            "audio": processed_audio
+                            "audio": raw_audio
                         }
                         await openai_ws.send(json.dumps(audio_append))
 
@@ -452,7 +452,8 @@ async def send_session_update(openai_ws, system_message, VERBOSE=False):
         "session": {
             "turn_detection": {
                     "type": "server_vad",
-                    "threshold": 0.7, # higher threshold will required louder audio to activate model
+                    "threshold": 0.8, # [0, 1,0] higher threshold will required louder audio to activate model
+                    "prefix_padding_ms": 500, # duration of audio to send before speech start (ms)
                     "silence_duration_ms": 500 # duration of silence to detect speech stop (ms)
                 },
             "input_audio_format": "g711_ulaw",
@@ -532,7 +533,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 5. order information (item name, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it as an empty string.
                 
                 All information must be extracted from the given transcript below, and pay close attention to the following details:
-                1. If any information is missing, you must leave it empty. NEVER MAKE UP ANY INFORMATION. 
+                1. If any information is missing, such as the name, pickup time, or anything else, you must leave it empty. NEVER EVER MAKE UP ANY INFORMATION. 
                 2. Note that the transcript is a real-time conversation between a customer and the AI, so extract the information as accurately as possible. Be especially careful with the name of the customer. 
                 3. Be careful and accurate for combo orders. For example, if the customer orders a combo meal or a party pack, make sure that this is extracted correctly in the order information. One of the worst thing you can do is to charge the client for many items individually rather than the discounted combo price. 
                 
