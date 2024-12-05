@@ -272,7 +272,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         }
     ) as openai_ws:
         await send_session_update(openai_ws, system_message)
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.2)
 
         stream_sid = None
         transcript = ""
@@ -301,8 +301,6 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                             }
                         }
                         await websocket.send_json(media_message)
-                        # Sleep for 20ms to simulate real-time streaming
-                        await asyncio.sleep(0.02)
                 except Exception as e:
                     logger.error(f"Error sending initial message audio: {e}", exc_info=True)
             
