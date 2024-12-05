@@ -30,7 +30,6 @@ from pydub import AudioSegment
 import audioop
 
 
-
 load_dotenv()
 
 ### ENVIRONMENT VARIABLES ###
