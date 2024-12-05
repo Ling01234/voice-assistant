@@ -1,4 +1,5 @@
 import os
+import httpx
 import pytz
 from printer import *
 from pdf import *
@@ -155,33 +156,37 @@ async def handle_incoming_call(request: Request):
     logger.info(f"Restaurant id: {restaurant_id}")
 
     try:
-
-        # Check the current live call count for this restaurant
+        # Check live call limits
         live_calls = await get_live_calls(restaurant_id)
         if live_calls >= max_concurrent_calls:
             response = VoiceResponse()
             response.say("Sorry, all our lines are currently busy. Please try again later.")
             return HTMLResponse(content=str(response), media_type="application/xml")
 
-        # Increment live call count for the restaurant
+        # Validate WebSocket URL
+        websocket_url = f'{WEBSOCKET_URL}/{restaurant_id}/{client_number}/{call_sid}'
+        if not await is_websocket_url_valid(websocket_url):
+            logger.error(f"Invalid WebSocket URL: {websocket_url}")
+            response = VoiceResponse()
+            response.say("Sorry, there was an issue connecting your call. Please try again later.")
+            await decrement_live_calls(restaurant_id)
+            return HTMLResponse(content=str(response), media_type="application/xml")
+
+        # Increment live call count
         await increment_live_calls(restaurant_id)
 
-        # Respond with a greeting using Twilio VoiceResponse
+        # Create and append the Connect object
         response = VoiceResponse()
-        # response.say(INITIAL_MESSAGE)
-
         connect = Connect()
-        connect.stream(
-            url=f'{WEBSOCKET_URL}/{restaurant_id}/{client_number}/{call_sid}'
-        )
+        connect.stream(url=websocket_url)
         response.append(connect)
 
         return HTMLResponse(content=str(response), media_type="application/xml")
 
     except Exception as e:
-        # Decrement live calls in case of an error
+        # Decrement live call count and log the error
         await decrement_live_calls(restaurant_id)
-        logger.error(f"Error handling incoming call: {e}")
+        logger.error(f"Error handling incoming call: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error processing the call")
 
 @app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
@@ -913,6 +918,15 @@ async def twilio_recording(request: Request):
         return {"error": "Internal server error"}, 500
     finally:
         close_connection(connection)
+
+async def is_websocket_url_valid(url: str) -> bool:
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            return response.status_code == 200
+    except Exception as e:
+        logger.error(f"Error validating WebSocket URL: {e}", exc_info=True)
+        return False
 
 # run app
 if __name__ == "__main__":
