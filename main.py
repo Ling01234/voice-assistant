@@ -170,7 +170,6 @@ async def handle_incoming_call(request: Request):
             logger.error(f"Invalid WebSocket URL: {websocket_url}")
             response = VoiceResponse()
             response.say("Sorry, there was an issue connecting your call. Please try again later.")
-            await decrement_live_calls(restaurant_id)
             return HTMLResponse(content=str(response), media_type="application/xml")
 
         # Increment live call count
