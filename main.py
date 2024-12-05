@@ -1,5 +1,6 @@
 import os
-import httpx
+import websockets
+from websockets.exceptions import WebSocketException
 import pytz
 from printer import *
 from pdf import *
@@ -166,11 +167,11 @@ async def handle_incoming_call(request: Request):
 
         # Validate WebSocket URL
         websocket_url = f'{WEBSOCKET_URL}/{restaurant_id}/{client_number}/{call_sid}'
-        if not await is_websocket_url_valid(websocket_url):
-            logger.error(f"Invalid WebSocket URL: {websocket_url}")
-            response = VoiceResponse()
-            response.say("Sorry, there was an issue connecting your call. Please try again later.")
-            return HTMLResponse(content=str(response), media_type="application/xml")
+        # if not await is_websocket_url_valid(websocket_url):
+        #     logger.error(f"Invalid WebSocket URL: {websocket_url}")
+        #     response = VoiceResponse()
+        #     response.say("Sorry, there was an issue connecting your call. Please try again later.")
+        #     return HTMLResponse(content=str(response), media_type="application/xml")
 
         # Increment live call count
         await increment_live_calls(restaurant_id)
@@ -921,13 +922,17 @@ async def twilio_recording(request: Request):
 
 async def is_websocket_url_valid(url: str) -> bool:
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
-            return response.status_code == 200
+        async with websockets.connect(url) as websocket:
+            # Optional: Send and receive a ping/pong or basic handshake
+            await websocket.ping()
+            return True
+    except WebSocketException as e:
+        logger.error(f"WebSocket handshake failed: {e}", exc_info=True)
+        return False
     except Exception as e:
         logger.error(f"Error validating WebSocket URL: {e}", exc_info=True)
         return False
-
+    
 # run app
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0")
