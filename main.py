@@ -116,21 +116,19 @@ async def handle_incoming_call(request: Request):
         # Decode Base64-encoded body if necessary
         if is_base64_encoded:
             decoded_bytes = base64.b64decode(body)
-            decoded_body = decoded_bytes.decode('utf-8')
+            decoded_body = decoded_bytes.decode("utf-8")
         else:
             decoded_body = body
 
         # Parse the URL-encoded body into a dictionary
         parsed_data = parse_qs(decoded_body)
-        
-        # remove list in dict values
         parsed_data = {key: value[0] for key, value in parsed_data.items()}
 
     elif "application/x-www-form-urlencoded" in content_type:
         # Direct Twilio request via Ngrok
         form_data = await request.form()
         parsed_data = {key: value for key, value in form_data.items()}
-        logger.info(f'TESTING PARSED DATA: {json.dumps(parsed_data, indent=2)}')
+        logger.info(f"TESTING PARSED DATA: {json.dumps(parsed_data, indent=2)}")
 
     else:
         raise HTTPException(status_code=400, detail="Unsupported Content-Type")
@@ -148,7 +146,16 @@ async def handle_incoming_call(request: Request):
     if not restaurant_id:
         raise HTTPException(status_code=404, detail="Restaurant not found for this number")
 
-    # max concurrent calls
+    # Check subscription status
+    subscription_status = get_subscription_status_by_restaurant_id(restaurant_id)  # New function to get subscription status
+    if subscription_status == "cancelled":
+        logger.info(f"Restaurant {restaurant_id} subscription is cancelled.")
+        response = VoiceResponse()
+        response.say("An application error has occurred. Please contact support.")
+        response.hangup()
+        return HTMLResponse(content=str(response), media_type="application/xml")
+
+    # Max concurrent calls
     max_concurrent_calls = get_max_concurrent_calls_by_restaurant_id(restaurant_id)
     if not max_concurrent_calls:
         raise HTTPException(status_code=404, detail="Max concurrent calls not found for this restaurant")
@@ -165,12 +172,7 @@ async def handle_incoming_call(request: Request):
             return HTMLResponse(content=str(response), media_type="application/xml")
 
         # Validate WebSocket URL
-        websocket_url = f'{WEBSOCKET_URL}/{restaurant_id}/{client_number}/{call_sid}'
-        # if not await is_websocket_url_valid(websocket_url):
-        #     logger.error(f"Invalid WebSocket URL: {websocket_url}")
-        #     response = VoiceResponse()
-        #     response.say("Sorry, there was an issue connecting your call. Please try again later.")
-        #     return HTMLResponse(content=str(response), media_type="application/xml")
+        websocket_url = f"{WEBSOCKET_URL}/{restaurant_id}/{client_number}/{call_sid}"
 
         # Increment live call count
         await increment_live_calls(restaurant_id)
