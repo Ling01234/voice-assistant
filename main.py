@@ -290,9 +290,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         6. If a client has already confirmed some of the information above (such as some ordered items), you do not need to repeat it back to them again.
         7. At the end, you should ask if there is anything else you can do for them, or if that's it. If the client says that's it, you should thank them for their order and tell them to have a great day.
 
-        Below are the extracted content from the menu. Be very careful and accurate when providing information from the menu.\n {menu_content}
-        
-        Lastly, note that the conversation will be conversed in {'English' if language == 'en' else 'French'}.
+        Lastly, note that the conversation will be conversed in {'English' if language == 'en' else 'French'}. Below is the menu content in the corresponding language. Be very careful and accurate when providing information from the menu.\n {menu_content}
         """
     except Exception as e:
         logger.error(f"Failed to retrieve menu: {e}")
