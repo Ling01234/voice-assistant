@@ -188,6 +188,7 @@ async def handle_incoming_call(request: Request):
             )
             # French part with a French voice
             gather.say(f"Bienvenue chez {restaurant_name}. Pour le français, appuyez sur le 1.", voice="alice", language="fr-CA")
+            await asyncio.sleep(0.2)
             # English part with an English voice
             gather.say(f"Welcome to {restaurant_name}. For English, please press 2.", voice="alice", language="en-CA")
             response.append(gather)
@@ -259,7 +260,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         logger.error(f"Failed to enable recording for call SID {call_sid}: {e}", exc_info=True)
 
     # Proceed with WebSocket interaction
-    menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id))
+    menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id), language)
 
     if VERBOSE:
         logger.info(f'Menu file path: {menu_file_path}')
@@ -285,13 +286,13 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         2. The client's phone number (Note that this is the number they called from: {client_number[2:5]}-{client_number[5:8]}-{client_number[8:]}. You should ask if this is the correct number they would like to be reached at). If the number is 514-123-4567, you should repeat the number as "five-one-four, one-two-three, four-five-six-seven".
         3. The ordered items, including the quantity and any special notes. 
         4. Whether the order is going to be picked up or delivered. If it's for delivery, you need to ask for the delivery address.
-        5. The corresponding time for pickup or delivery. If the client responds with "as soon as possible", "right now", "how long will it take?" or similar questions, you should tell them that it will take approximately {wait_time} minutes.
+        5. The corresponding time for pickup or delivery. If the client responds with "as soon as possible", "right now", "how long will it take?" or similar questions, you should tell them that it will take approximately {wait_time} minutes. Do not deviate from this minimum preparation time.
         6. If a client has already confirmed some of the information above (such as some ordered items), you do not need to repeat it back to them again.
         7. At the end, you should ask if there is anything else you can do for them, or if that's it. If the client says that's it, you should thank them for their order and tell them to have a great day.
 
         Below are the extracted content from the menu. Be very careful and accurate when providing information from the menu.\n {menu_content}
         
-        Lastlt, note that the conversation will be conversed in {'English' if language == 'en' else 'French'}.
+        Lastly, note that the conversation will be conversed in {'English' if language == 'en' else 'French'}.
         """
     except Exception as e:
         logger.error(f"Failed to retrieve menu: {e}")
@@ -316,7 +317,6 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         }
     ) as openai_ws:
         await send_session_update(openai_ws, system_message)
-        await asyncio.sleep(0.2)
 
         stream_sid = None
         transcript = ""

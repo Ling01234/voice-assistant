@@ -185,22 +185,24 @@ def get_restaurant_id_by_twilio_number(twilio_number):
         if connection and connection.is_connected():
             connection.close()
 
-def get_menu_file_path_by_restaurant_id(restaurant_id):
+def get_menu_file_path_by_restaurant_id(restaurant_id, language):
     connection = create_connection()
     if not connection:
         logger.error("Failed to connect to the database")
         return None
+    
+    menu_path = 'menu_file_path_en' if language == 'en' else 'menu_file_path_fr'
 
     try:
         cursor = connection.cursor()
-        query = """
-        SELECT menu_file_path FROM Restaurants WHERE restaurant_id = %s
+        query = f"""
+        SELECT {menu_path} FROM Restaurants WHERE restaurant_id = %s
         """
         cursor.execute(query, (restaurant_id,))
         result = cursor.fetchone()
         return result[0] if result else None
     except Error as e:
-        logger.error(f"Error retrieving menu_file_path for restaurant_id {restaurant_id}: {e}")
+        logger.error(f"Error retrieving {menu_path} for restaurant_id {restaurant_id}: {e}")
         return None
     finally:
         if connection and connection.is_connected():
