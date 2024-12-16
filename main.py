@@ -137,6 +137,7 @@ async def handle_incoming_call(request: Request):
     twilio_number = parsed_data.get("To", None)
     client_number = parsed_data.get("From", None)
     call_sid = parsed_data.get("CallSid", None)
+    digits = parsed_data.get("Digits", None)  # Captured input from Gather
 
     if not twilio_number:
         raise HTTPException(status_code=400, detail="Missing 'To' parameter in the request")
@@ -146,8 +147,12 @@ async def handle_incoming_call(request: Request):
     if not restaurant_id:
         raise HTTPException(status_code=404, detail="Restaurant not found for this number")
 
+    restaurant_name = get_restaurant_name_by_restaurant_id(restaurant_id)
+    if not restaurant_name:
+        raise HTTPException(status_code=404, detail="Restaurant name not found for this restaurant")
+
     # Check subscription status
-    subscription_status = get_subscription_status_by_restaurant_id(restaurant_id)  # New function to get subscription status
+    subscription_status = get_subscription_status_by_restaurant_id(restaurant_id)
     if subscription_status == "cancelled":
         logger.info(f"Restaurant {restaurant_id} subscription is cancelled.")
         response = VoiceResponse()
@@ -171,8 +176,38 @@ async def handle_incoming_call(request: Request):
             response.say("Sorry, all our lines are currently busy. Please try again later.")
             return HTMLResponse(content=str(response), media_type="application/xml")
 
-        # Validate WebSocket URL
-        websocket_url = f"{WEBSOCKET_URL}/{restaurant_id}/{client_number}/{call_sid}"
+        language = None
+
+        if not digits:
+            # Prompt user for language selection
+            response = VoiceResponse()
+            gather = response.gather(
+                num_digits=1,
+                action="/incoming-call",  # Callback URL to handle selection
+                method="POST"
+            )
+            # French part with a French voice
+            gather.say(f"Bienvenue chez {restaurant_name}. Pour le français, appuyez sur le 1.", voice="alice", language="fr-CA")
+            # English part with an English voice
+            gather.say(f"Welcome to {restaurant_name}. For English, please press 2.", voice="alice", language="en-CA")
+            response.append(gather)
+            response.redirect("/incoming-call")  # Redirect if no input is received
+            return HTMLResponse(content=str(response), media_type="application/xml")
+
+        # Process language selection
+        if digits == "1":
+            language = "fr"
+        elif digits == "2":
+            language = "en"
+        else:
+            # Invalid input: prompt user again
+            response = VoiceResponse()
+            response.say("Invalid selection. Please try again.")
+            response.redirect("/incoming-call")
+            return HTMLResponse(content=str(response), media_type="application/xml")
+
+        # Construct WebSocket URL with language as part of the path
+        websocket_url = f"{WEBSOCKET_URL}/{restaurant_id}/{client_number}/{call_sid}/{language}"
 
         # Increment live call count
         await increment_live_calls(restaurant_id)
@@ -191,9 +226,9 @@ async def handle_incoming_call(request: Request):
         logger.error(f"Error handling incoming call: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error processing the call")
 
-@app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}")
+@app.websocket("/media-stream/{restaurant_id}/{client_number}/{call_sid}/{language}")
 async def handle_media_stream(websocket: WebSocket, restaurant_id: int, 
-                              client_number: str, call_sid: str):
+                              client_number: str, call_sid: str, language: str):
     logger.info(f"{client_number} connected to media stream for restaurant_id: {restaurant_id}")
 
     try:
@@ -255,6 +290,8 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         7. At the end, you should ask if there is anything else you can do for them, or if that's it. If the client says that's it, you should thank them for their order and tell them to have a great day.
 
         Below are the extracted content from the menu. Be very careful and accurate when providing information from the menu.\n {menu_content}
+        
+        Lastlt, note that the conversation will be conversed in {'English' if language == 'en' else 'French'}.
         """
     except Exception as e:
         logger.error(f"Failed to retrieve menu: {e}")
@@ -286,12 +323,16 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         forward = False
 
         async def receive_from_twilio():
-            nonlocal stream_sid, transcript, forward
+            nonlocal stream_sid, transcript, forward, language
 
             async def send_initial_message_audio():
                 try:
                     # Load and process the MP3 file
-                    initial_message_audio = AudioSegment.from_mp3("initial message.mp3")
+                    if language == 'en':
+                        initial_message_audio = AudioSegment.from_mp3("initial message en.mp3")
+                    elif language == 'fr':
+                        initial_message_audio = AudioSegment.from_mp3("initial message fr.mp3")
+                        
                     initial_message_audio = initial_message_audio.set_frame_rate(8000).set_channels(1)
                     raw_audio_data = initial_message_audio.raw_data
                     mu_law_audio_data = audioop.lin2ulaw(raw_audio_data, 2)  # 2 bytes per sample (16 bits)
@@ -369,7 +410,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                     await openai_ws.close()
 
         async def send_to_twilio():
-            nonlocal stream_sid, transcript, forward
+            nonlocal stream_sid, transcript, forward, language
             try:
                 async for openai_message in openai_ws:
                     response = json.loads(openai_message)
