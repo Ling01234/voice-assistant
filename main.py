@@ -261,8 +261,18 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
         logger.error(f"Failed to enable recording for call SID {call_sid}: {e}", exc_info=True)
     
     # Fetch the menu content from S3 using the new s3_handler
+    menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id), language)
+
+    if VERBOSE:
+        logger.info(f'Menu file path: {menu_file_path}')
+    if not menu_file_path:
+        raise HTTPException(status_code=404, detail="Menu file path not found for this restaurant")
+        
     try:
-        system_message = await create_system_message(client_number, restaurant_id, language)
+        wait_time = await calculate_wait_time()
+        menu_content = fetch_file_from_s3(menu_file_path)
+
+        system_message = await create_system_message(client_number, wait_time, menu_content, language)
 
     except Exception as e:
         logger.error(f"Failed to create system message menu: {e}")
@@ -946,16 +956,7 @@ async def is_websocket_url_valid(url: str) -> bool:
         logger.error(f"Error validating WebSocket URL: {e}", exc_info=True)
         return False
     
-async def create_system_message(client_number, restaurant_id, language):
-    menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id), language)
-
-    if VERBOSE:
-        logger.info(f'Menu file path: {menu_file_path}')
-    if not menu_file_path:
-        raise HTTPException(status_code=404, detail="Menu file path not found for this restaurant")
-        
-    wait_time = await calculate_wait_time()
-    menu_content = fetch_file_from_s3(menu_file_path)
+async def create_system_message(client_number, wait_time, menu_content, language):
 
     if language == 'en':
         system_message = f"""
