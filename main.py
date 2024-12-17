@@ -259,25 +259,15 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
     except Exception as e:
         logger.error(f"Failed to enable recording for call SID {call_sid}: {e}", exc_info=True)
-
-    # Proceed with WebSocket interaction
-    menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id), language)
-
-    if VERBOSE:
-        logger.info(f'Menu file path: {menu_file_path}')
-    if not menu_file_path:
-        raise HTTPException(status_code=404, detail="Menu file path not found for this restaurant")
     
     # Fetch the menu content from S3 using the new s3_handler
     try:
-        wait_time = await calculate_wait_time()
-        menu_content = fetch_file_from_s3(menu_file_path)
-        system_message = await create_system_message(client_number, menu_content, wait_time, language)
+        system_message = await create_system_message(client_number, restaurant_id, language)
 
     except Exception as e:
-        logger.error(f"Failed to retrieve menu: {e}")
+        logger.error(f"Failed to create system message menu: {e}")
         logger.info(f'\n{"-" * 75}\n')  # Logger separator
-        raise HTTPException(status_code=500, detail="Failed to retrieve menu from S3")
+        raise HTTPException(status_code=500, detail="Failed to create system message menu from S3")
 
     # fetch the forward phone number
     forward_phone_number = get_forward_phone_number_by_restaurant_id(restaurant_id)
@@ -956,7 +946,17 @@ async def is_websocket_url_valid(url: str) -> bool:
         logger.error(f"Error validating WebSocket URL: {e}", exc_info=True)
         return False
     
-async def create_system_message(client_number, menu_content, wait_time, language):
+async def create_system_message(client_number, restaurant_id, language):
+    menu_file_path = get_menu_file_path_by_restaurant_id(str(restaurant_id), language)
+
+    if VERBOSE:
+        logger.info(f'Menu file path: {menu_file_path}')
+    if not menu_file_path:
+        raise HTTPException(status_code=404, detail="Menu file path not found for this restaurant")
+        
+    wait_time = await calculate_wait_time()
+    menu_content = fetch_file_from_s3(menu_file_path)
+
     if language == 'en':
         system_message = f"""
             You are a friendly and experienced waiter at a restaurant taking orders, and you provide accurate information and helpful recommendations. At the beginning of the call, the customer's first response is in response to the initial message: {INITIAL_MESSAGE} (therefore you don't need to greet them again). During the call, if you do not understand the client's question or message or if the message seems to have been cutoff, you should politely ask them to repeat themselves. You should also keep the following points in mind during the conversation with the client:
@@ -1004,6 +1004,9 @@ async def create_system_message(client_number, menu_content, wait_time, language
         """
         
         return system_message
+    
+    else:
+        raise HTTPException(status_code=404, detail="Language not supported")
         
     
 # run app
