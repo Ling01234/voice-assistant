@@ -290,7 +290,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
     await websocket.accept()
 
     async with websockets.connect(
-        'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01',
+        'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17',
         extra_headers={
             "Authorization": f"Bearer {OPENAI_API_KEY}",
             "OpenAI-Beta": "realtime=v1"
@@ -558,6 +558,10 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
     """Make a ChatGPT API call and enforce schema using JSON."""
     logger.info("Starting Content Extraction...")
 
+    restaurant_name = get_restaurant_name_by_restaurant_id(restaurant_id)
+    montreal_tz = pytz.timezone('America/Montreal')
+    current_time = datetime.datetime.now(montreal_tz).strftime('%Y-%m-%d %H:%M:%S')
+
     if not transcript.strip():
         return {
             "name": "",
@@ -568,7 +572,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
             "order_info": {
                 "items": [],
                 "order_id": "",
-                "timestamp": "",
+                "timestamp": current_time,
                 "call_sid": call_sid,
                 "restaurant_id": restaurant_id,
                 "restaurant_name": "",
@@ -578,15 +582,10 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 "pickup_or_delivery_time": "",
             },
             "call_sid": call_sid,
-            "timestamp": "",
+            "timestamp": current_time,
             "timer": timer,
             "transcript": transcript
         }
-
-    restaurant_name = get_restaurant_name_by_restaurant_id(restaurant_id)
-    
-    montreal_tz = pytz.timezone('America/Montreal')
-    current_time = datetime.datetime.now(montreal_tz).strftime('%Y-%m-%d %H:%M:%S')
 
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
