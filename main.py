@@ -558,6 +558,31 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
     """Make a ChatGPT API call and enforce schema using JSON."""
     logger.info("Starting Content Extraction...")
 
+    if not transcript.strip():
+        return {
+            "name": "",
+            "phone_number": "",
+            "pickup": False,
+            "pickup_or_delivery_time": "",
+            "confirmation": False,
+            "order_info": {
+                "items": [],
+                "order_id": "",
+                "timestamp": "",
+                "call_sid": call_sid,
+                "restaurant_id": restaurant_id,
+                "restaurant_name": "",
+                "customer_name": "",
+                "phone_number": "",
+                "pickup": False,
+                "pickup_or_delivery_time": "",
+            },
+            "call_sid": call_sid,
+            "timestamp": "",
+            "timer": timer,
+            "transcript": transcript
+        }
+
     restaurant_name = get_restaurant_name_by_restaurant_id(restaurant_id)
     
     montreal_tz = pytz.timezone('America/Montreal')
