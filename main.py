@@ -28,9 +28,8 @@ from redis_handler import *
 from audio import preprocess_audio
 from pydub import AudioSegment
 import audioop
-
-
 load_dotenv()
+
 
 ### ENVIRONMENT VARIABLES ###
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
@@ -38,6 +37,25 @@ WEBHOOK_URL = os.getenv("MAKE_WEBHOOK_URL")
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 ENV = os.getenv('ENVIRONMENT', 'prod') 
+
+### LOGGING CONFIG ###
+log_filename = datetime.datetime.now().strftime("logs_%Y_%m.log")
+
+# Configure logging
+if not os.path.exists("logs"):
+    os.makedirs("logs")  # Create a "logs" directory if it doesn't exist
+
+logging.basicConfig(
+    level=logging.INFO,
+    format=f"%(asctime)s - %(name)s - %(levelname)s - [ENV={ENV}] - %(message)s",
+    handlers=[
+        logging.FileHandler(f"logs/{log_filename}", mode='a'),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger("voice-assistant-app")
+### END LOGGING CONFIG ###
 
 
 VERBOSE = False
@@ -64,27 +82,10 @@ LOG_EVENT_TYPES = [
 
 if ENV == 'local':
     WEBSOCKET_URL = os.getenv('WEBSOCKET_URL') # moved to .env file
+    logger.info(f'Local Environment: {WEBSOCKET_URL}')
     VERBOSE_TRANSCRIPT = True
 else:
     WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
-
-### LOGGING CONFIG ###
-log_filename = datetime.datetime.now().strftime("logs_%Y_%m.log")
-
-# Configure logging
-if not os.path.exists("logs"):
-    os.makedirs("logs")  # Create a "logs" directory if it doesn't exist
-
-logging.basicConfig(
-    level=logging.INFO,
-    format=f"%(asctime)s - %(name)s - %(levelname)s - [ENV={ENV}] - %(message)s",
-    handlers=[
-        logging.FileHandler(f"logs/{log_filename}", mode='a'),
-        logging.StreamHandler()
-    ]
-)
-
-logger = logging.getLogger("voice-assistant-app")
 
 if not VERBOSE:
     logging.getLogger("twilio.http_client").setLevel(logging.WARNING)
@@ -290,7 +291,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
     await websocket.accept()
 
     async with websockets.connect(
-        'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17',
+        'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview',
         extra_headers={
             "Authorization": f"Bearer {OPENAI_API_KEY}",
             "OpenAI-Beta": "realtime=v1"
@@ -1004,6 +1005,9 @@ async def create_system_message(client_number, wait_time, menu_content, language
 
             Below is the menu content. Be very careful and accurate when providing information from the menu.\n {menu_content}
         """
+        
+        return system_message
+        
 
     elif language == 'fr':
         system_message = f"""
