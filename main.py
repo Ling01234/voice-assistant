@@ -82,9 +82,11 @@ LOG_EVENT_TYPES = [
 
 if ENV == 'local':
     WEBSOCKET_URL = os.getenv('WEBSOCKET_URL') # moved to .env file
+    INCOMING_CALL_ENDPOINT = os.getenv('INCOMING_CALL_ENDPOINT')
     VERBOSE_TRANSCRIPT = True
 else:
     WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
+    INCOMING_CALL_ENDPOINT = "https://angelsbot.net/incoming-call"
 
 if not VERBOSE:
     logging.getLogger("twilio.http_client").setLevel(logging.WARNING)
@@ -205,7 +207,7 @@ async def handle_incoming_call(request: Request):
             # Invalid input: prompt user again
             response = VoiceResponse()
             response.say("Invalid selection. Please try again.")
-            response.redirect("/incoming-call")
+            response.redirect(INCOMING_CALL_ENDPOINT)
             logger.info(f'Invalid response: {str(response)}')
             return HTMLResponse(content=str(response), media_type="application/xml")
 
