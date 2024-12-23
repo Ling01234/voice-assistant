@@ -189,7 +189,7 @@ async def handle_incoming_call(request: Request):
             )
             # French part with a French voice
             gather.say(f"Bienvenue chez {restaurant_name}. Pour le français, appuyez sur le 1.", voice="alice", language="fr-CA")
-            await asyncio.sleep(0.4)
+            gather.pause(length=0.3)
             # English part with an English voice
             gather.say(f"Welcome to {restaurant_name}. For English, please press 2.", voice="alice", language="en-CA")
             response.append(gather)
@@ -206,6 +206,7 @@ async def handle_incoming_call(request: Request):
             response = VoiceResponse()
             response.say("Invalid selection. Please try again.")
             response.redirect("/incoming-call")
+            logger.info(f'Invalid response: {str(response)}')
             return HTMLResponse(content=str(response), media_type="application/xml")
 
         # Construct WebSocket URL with language as part of the path
