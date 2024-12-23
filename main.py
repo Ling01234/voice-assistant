@@ -82,7 +82,6 @@ LOG_EVENT_TYPES = [
 
 if ENV == 'local':
     WEBSOCKET_URL = os.getenv('WEBSOCKET_URL') # moved to .env file
-    logger.info(f'Local Environment: {WEBSOCKET_URL}')
     VERBOSE_TRANSCRIPT = True
 else:
     WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
@@ -597,7 +596,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
     # Request payload with enforced JSON schema
     payload = {
         # "model": "gpt-3.5-turbo",
-        "model": "chatgpt-4o-latest", # always points to latest model
+        "model": "gpt-4o",
         "messages": [
             {
                 "role": "system",
@@ -676,7 +675,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 data = await response.json()
                 # logger.info(f"Full ChatGPT API response: {json.dumps(data, indent=2)}")
 
-                # Parse the function call arguments
+                logger.info(f'data: {json.dumps(data, indent=2)}')
                 arguments = json.loads(data["choices"][0]["message"]["function_call"]["arguments"])
 
                 # Enrich the response with generated values
@@ -700,7 +699,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 return arguments
 
         except Exception as error:
-            logger.error(f"Error making ChatGPT completion call: {error}")
+            logger.error(f"Error making ChatGPT completion call: {error}", exc_info=True)
             logger.info(f'\n{"-" * 75}\n')  # Logger separator
             
             raise
@@ -990,12 +989,12 @@ async def create_system_message(client_number, wait_time, menu_content, language
             2. If you need to ask the client for information, stick to asking 1 piece of information per request if possible. It's very important to split up the questions to avoid overwhelming the client.
             3. You should behave like an experienced waiter, and ask meaningful follow up questions when necessary. For example, if a client orders a steak, you should ask them about the desired level of doneness. If a client orders a coffee, you should ask them if they want any milk or sugar. If a client orders a salad, you should ask them about the dressing. If a client orders a soft drink, you should ask them which one and if they want ice.
             4. You should avoid giving any prices during the conversation, except it the client explicitly asks for it. 
-            5. Make sure to carefully listen to the client's messages, such as when they give you their name. If you are unsure, politely ask them to repeat themselves.
+            5. Make sure to carefully listen to the client's messages. If you are unsure, politely ask them to repeat themselves.
             6. It is extremely important to stick to the menu below when giving out recommendations or taking orders. If the client asks for something that is not on the menu, politely inform them that it is not available. More importantly, you should never recommend something that is not on the menu.
             7. If a client asks for the phone call to be forwarded, you should let them know that you will transfer them to a live agent, and for them to hold the line.
+            8. You should aks for their name, but do not repeat it after. Simply reply with "thank you" or something similar, and continue the conversation. 
             
             At the end of the call, you should repeat the order to the client and confirm the following:
-            1. The client's name.
             2. The client's phone number (Note that this is the number they called from: {client_number[2:5]}-{client_number[5:8]}-{client_number[8:]}. You should ask if this is the correct number they would like to be reached at). If the number is 514-123-4567, you should repeat the number as "five-one-four, one-two-three, four-five-six-seven".
             3. The ordered items, including the quantity and any special notes. 
             4. Whether the order is going to be picked up or delivered. If it's for delivery, you need to ask for the delivery address.
@@ -1016,12 +1015,12 @@ async def create_system_message(client_number, wait_time, menu_content, language
             2. Si vous devez poser des questions au client, demandez une seule information à la fois dans la mesure du possible. Il est très important de diviser les questions pour éviter de submerger le client.
             3. Vous devez agir comme un serveur expérimenté et poser des questions pertinentes lorsque cela est nécessaire. Par exemple, si un client commande un steak, demandez-lui la cuisson souhaitée. Si un client commande un café, demandez-lui s'il souhaite du lait ou du sucre. Si un client commande une salade, demandez-lui quel assaisonnement il préfère. Si un client commande une boisson gazeuse, demandez-lui laquelle il souhaite et s'il veut des glaçons.
             4. Évitez de donner des prix pendant la conversation, sauf si le client le demande explicitement.
-            5. Écoutez attentivement les messages du client, comme lorsqu'il vous donne son nom. Si vous n'êtes pas sûr, demandez-lui poliment de le répéter.
+            5. Écoutez attentivement les messages du client. Si vous n'êtes pas sûr, demandez-lui poliment de se répéter.
             6. Il est extrêmement important de vous en tenir strictement au menu ci-dessous pour vos recommandations ou pour prendre des commandes. Si le client demande quelque chose qui n'est pas sur le menu, informez-le poliment que ce n'est pas disponible. Plus important encore, ne recommandez jamais quelque chose qui n'est pas sur le menu.
             7. Si un client demande à être transféré à un agent en direct, informez-le que vous allez le transférer et demandez-lui de rester en ligne.
+            8. Vous devez demander leur nom, mais ne le répétez pas après. Répondez simplement par "merci" ou quelque chose de similaire, et continuez la conversation.
 
             À la fin de l'appel, vous devez répéter la commande au client et confirmer les points suivants :
-            1. Le nom du client.
             2. Le numéro de téléphone du client (Notez qu'il s'agit du numéro à partir duquel il a appelé : {client_number[2:5]}-{client_number[5:8]}-{client_number[8:]}. Vous devez lui demander si c'est bien le bon numéro pour le joindre). Si le numéro est 514-123-4567, vous devez le répéter comme suit : "cinq-un-quatre, un-deux-trois, quatre-cinq-six-sept".
             3. Les articles commandés, y compris la quantité et les notes spéciales.
             4. Si la commande sera récupérée ou livrée. Si c'est pour une livraison, demandez l'adresse de livraison.
