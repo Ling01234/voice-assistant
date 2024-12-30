@@ -365,7 +365,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
                         # logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
-                        order_info = await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id, menu_content, client_number, call_sid, forward)
+                        order_info = await process_transcript_and_send(transcript, end_timer - start_timer, restaurant_id, menu_content, client_number, call_sid, forward, language)
                         
                         # if order not confirmed
                         if not order_info: 
@@ -557,7 +557,7 @@ async def send_session_update(openai_ws, system_message, VERBOSE=False):
 
 
 
-async def content_extraction(transcript, timer, restaurant_id, menu_content, call_sid):
+async def content_extraction(transcript, timer, restaurant_id, menu_content, call_sid, language):
     """Make a ChatGPT API call and enforce schema using JSON."""
     logger.info("Starting Content Extraction...")
 
@@ -611,7 +611,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 4. pickup or delivery time
                 5. order information (item name, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it as an empty string.
                 
-                All information must be extracted from the given transcript, and pay close attention to the following details:
+                All information must be extracted from the given transcript, in {language}, and pay close attention to the following details:
                 1. If any information is missing, such as the name, pickup time, or anything else, you must leave it empty. NEVER EVER MAKE UP ANY INFORMATION. 
                 2. Note that the transcript is a real-time conversation between a customer and the AI, so extract the information as accurately as possible. Be especially careful with the name of the customer. 
                 3. Be careful and accurate for combo orders. For example, if the customer orders a combo meal or a party pack, make sure that this is extracted correctly in the order information. One of the worst thing you can do is to charge the client for many items individually rather than the discounted combo price. 
@@ -709,11 +709,11 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
 
 
 async def process_transcript_and_send(transcript, timer, 
-                                      restaurant_id, menu_content, client_number, call_sid, forward):
+                                      restaurant_id, menu_content, client_number, call_sid, forward, language):
     """Process the transcript and send the extracted data to the webhook."""
     try:
         # Make the ChatGPT completion call
-        result = await content_extraction(transcript, timer, restaurant_id, menu_content, call_sid)
+        result = await content_extraction(transcript, timer, restaurant_id, menu_content, call_sid, language)
 
         # Check if the response contains the expected data
         if result:
