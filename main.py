@@ -373,7 +373,7 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
                         # Send message to customer
                         twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
-                        client_message = await format_client_message(order_info, twilio_number, language)
+                        client_message = await format_client_message(order_info, forward_phone_number, language)
                         await send_sms_from_twilio(client_number, twilio_number, client_message)
 
             except WebSocketDisconnect:
@@ -872,7 +872,7 @@ async def calculate_wait_time():
         return 20
     
 
-async def format_client_message(order_info, twilio_number, language):
+async def format_client_message(order_info, forward_phone_number, language = 'en'):
     # Extract order details
     order_id = order_info["order_id"]
     timestamp = order_info["timestamp"]
@@ -906,7 +906,7 @@ async def format_client_message(order_info, twilio_number, language):
             f"Heure de la commande : {timestamp}\n\n"
             f"Articles :\n{items_details}\n\n"
             f"Heure de {'ramassage' if pickup else 'livraison'} : {pickup_or_delivery_time}\n\n"
-            f"Pour toute question, appelez-nous au {twilio_number}.\n"
+            f"Pour toute question, appelez-nous au {forward_phone_number}.\n"
             f"Merci d'avoir choisi {restaurant_name}!"
         )
     else:  # Default to English
@@ -917,7 +917,7 @@ async def format_client_message(order_info, twilio_number, language):
             f"Order Time: {timestamp}\n\n"
             f"Items:\n{items_details}\n\n"
             f"{order_type} Time: {pickup_or_delivery_time}\n\n"
-            f"For any questions, call us at {twilio_number}.\n"
+            f"For any questions, call us at {forward_phone_number}.\n"
             f"Thank you for choosing {restaurant_name}!"
         )
     
