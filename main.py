@@ -564,6 +564,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
     restaurant_name = get_restaurant_name_by_restaurant_id(restaurant_id)
     montreal_tz = pytz.timezone('America/Montreal')
     current_time = datetime.datetime.now(montreal_tz).strftime('%Y-%m-%d %H:%M:%S')
+    full_language = 'English' if language == 'en' else 'French'
 
     if not transcript.strip():
         return {
@@ -611,7 +612,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 4. pickup or delivery time
                 5. order information (item name, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it as an empty string.
                 
-                All information must be extracted from the given transcript, in {language}, and pay close attention to the following details:
+                All information must be extracted from the given transcript, in {full_language}, and pay close attention to the following details:
                 1. If any information is missing, such as the name, pickup time, or anything else, you must leave it empty. NEVER EVER MAKE UP ANY INFORMATION. 
                 2. Note that the transcript is a real-time conversation between a customer and the AI, so extract the information as accurately as possible. Be especially careful with the name of the customer. 
                 3. Be careful and accurate for combo orders. For example, if the customer orders a combo meal or a party pack, make sure that this is extracted correctly in the order information. One of the worst thing you can do is to charge the client for many items individually rather than the discounted combo price. 
