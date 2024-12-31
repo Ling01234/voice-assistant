@@ -727,6 +727,8 @@ async def process_transcript_and_send(transcript, timer,
             call_sid = result["call_sid"]
             restaurant_id = restaurant_id
             transcript_text = result["transcript"]
+            customer_phone_number = result["phone_number"]
+            customer_name = result["name"]
 
             # make sure confirmation is False if call is forwarded
             if forward: 
@@ -737,7 +739,9 @@ async def process_transcript_and_send(transcript, timer,
             timestamp = result["timestamp"]
             order_info = result["order_info"]
             insert_call_record(connection, call_sid, restaurant_id, 
-                               transcript_text, timestamp, timer, confirmation, forward)
+                               transcript_text, timestamp, timer, 
+                               customer_phone_number, customer_name, 
+                               confirmation, forward)
 
             # Insert order record if confirmed
             if confirmation:
