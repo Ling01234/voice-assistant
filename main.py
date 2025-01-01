@@ -582,7 +582,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 "restaurant_name": "",
                 "customer_name": "",
                 "phone_number": "",
-                "pickup": False,
+                "pickup": True,
                 "pickup_or_delivery_time": "",
             },
             "call_sid": call_sid,
@@ -608,7 +608,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 Extract the following details from the transcript below in a structured JSON:
                 1. name
                 2. phone number
-                3. order type (pickup or delivery)
+                3. order type (always pickup)
                 4. pickup or delivery time
                 5. order information (item name, quantity, unit price, notes). For each item, make sure to extract any relevant 'notes' from the transcript. If no notes are provided, leave it as an empty string.
                 
@@ -687,6 +687,7 @@ async def content_extraction(transcript, timer, restaurant_id, menu_content, cal
                 arguments["timestamp"] = current_time
                 arguments["timer"] = timer
                 arguments['transcript'] = transcript #transcript with newlines
+                arguments['pickup'] = True # only pickup for now
 
                 # Add formatted order_id to order_info + required info for the order
                 timestamp_seconds = int(datetime.datetime.now().timestamp())
