@@ -85,8 +85,8 @@ if ENV == 'local':
     INCOMING_CALL_ENDPOINT = os.getenv('INCOMING_CALL_ENDPOINT')
     VERBOSE_TRANSCRIPT = True
 else:
-    WEBSOCKET_URL = "wss://angelsbot.net/media-stream"
-    INCOMING_CALL_ENDPOINT = "https://angelsbot.net/incoming-call"
+    WEBSOCKET_URL = os.getenv('WEBSOCKET_URL_PROD')
+    INCOMING_CALL_ENDPOINT = os.getenv('INCOMING_CALL_ENDPOINT_PROD')
 
 if not VERBOSE:
     logging.getLogger("twilio.http_client").setLevel(logging.WARNING)
