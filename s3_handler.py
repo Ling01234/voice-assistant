@@ -38,7 +38,7 @@ def fetch_file_from_s3(object_key):
     try:
         response = s3_client.get_object(Bucket=BUCKET_NAME, Key=object_key)
         content = response['Body'].read().decode('utf-8')
-        logger.info("Successfully fetched file from S3.")
+        # logger.info("Successfully fetched file from S3.")
         return content
     
     except NoCredentialsError:

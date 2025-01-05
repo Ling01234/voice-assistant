@@ -159,7 +159,7 @@ async def handle_incoming_call(request: Request):
     if subscription_status == "cancelled":
         logger.info(f"Restaurant {restaurant_id} subscription is cancelled.")
         response = VoiceResponse()
-        response.say("An application error has occurred. Please contact support.")
+        response.say("There is currently no active subscription on this account. Please contact support.")
         response.hangup()
         return HTMLResponse(content=str(response), media_type="application/xml")
 
@@ -168,8 +168,8 @@ async def handle_incoming_call(request: Request):
     if not max_concurrent_calls:
         raise HTTPException(status_code=404, detail="Max concurrent calls not found for this restaurant")
 
-    logger.info(f"Restaurant number: {twilio_number}")
-    logger.info(f"Restaurant id: {restaurant_id}")
+    # logger.info(f"Restaurant number: {twilio_number}")
+    # logger.info(f"Restaurant id: {restaurant_id}")
 
     try:
         # Check live call limits
@@ -208,7 +208,6 @@ async def handle_incoming_call(request: Request):
             response = VoiceResponse()
             response.say("Invalid selection. Please try again.")
             response.redirect(INCOMING_CALL_ENDPOINT)
-            logger.info(f'Invalid response: {str(response)}')
             return HTMLResponse(content=str(response), media_type="application/xml")
 
         # Construct WebSocket URL with language as part of the path
@@ -358,7 +357,8 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
 
                     elif data['event'] == 'stop':
                         # Extract summary after call ends
-                        logger.info("Customer Ending Twilio call...")
+                        if VERBOSE:
+                            logger.info(f"Customer Ending Twilio call...")
 
                         # Decrement live call count when the call stops
                         await decrement_live_calls(restaurant_id)
@@ -559,7 +559,7 @@ async def send_session_update(openai_ws, system_message, VERBOSE=False):
 
 async def content_extraction(transcript, timer, restaurant_id, menu_content, call_sid, language):
     """Make a ChatGPT API call and enforce schema using JSON."""
-    logger.info("Starting Content Extraction...")
+    # logger.info("Starting Content Extraction...")
 
     restaurant_name = get_restaurant_name_by_restaurant_id(restaurant_id)
     montreal_tz = pytz.timezone('America/Montreal')
