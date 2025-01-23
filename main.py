@@ -7,7 +7,6 @@ from pdf import *
 from s3_handler import fetch_file_from_s3
 from database import *
 import time
-import uuid
 import datetime
 import aiohttp
 import json
@@ -24,7 +23,6 @@ from twilio.rest import Client
 from dotenv import load_dotenv
 import uvicorn
 import logging
-from redis_handler import *
 from audio import preprocess_audio
 from pydub import AudioSegment
 import audioop
@@ -163,22 +161,7 @@ async def handle_incoming_call(request: Request):
         response.hangup()
         return HTMLResponse(content=str(response), media_type="application/xml")
 
-    # Max concurrent calls
-    max_concurrent_calls = get_max_concurrent_calls_by_restaurant_id(restaurant_id)
-    if not max_concurrent_calls:
-        raise HTTPException(status_code=404, detail="Max concurrent calls not found for this restaurant")
-
-    # logger.info(f"Restaurant number: {twilio_number}")
-    # logger.info(f"Restaurant id: {restaurant_id}")
-
     try:
-        # Check live call limits
-        live_calls = await get_live_calls(restaurant_id)
-        if live_calls >= max_concurrent_calls:
-            response = VoiceResponse()
-            response.say("Sorry, all our lines are currently busy. Please try again later.")
-            return HTMLResponse(content=str(response), media_type="application/xml")
-
         language = None
 
         if not digits:
@@ -213,9 +196,6 @@ async def handle_incoming_call(request: Request):
         # Construct WebSocket URL with language as part of the path
         websocket_url = f"{WEBSOCKET_URL}/{restaurant_id}/{client_number}/{call_sid}/{language}"
 
-        # Increment live call count
-        await increment_live_calls(restaurant_id)
-
         # Create and append the Connect object
         response = VoiceResponse()
         connect = Connect()
@@ -225,8 +205,6 @@ async def handle_incoming_call(request: Request):
         return HTMLResponse(content=str(response), media_type="application/xml")
 
     except Exception as e:
-        # Decrement live call count and log the error
-        await decrement_live_calls(restaurant_id)
         logger.error(f"Error handling incoming call: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error processing the call")
 
@@ -360,8 +338,6 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         if VERBOSE:
                             logger.info(f"Customer Ending Twilio call...")
 
-                        # Decrement live call count when the call stops
-                        await decrement_live_calls(restaurant_id)
 
                         # logger.info(f'Full transcript: {transcript}')
                         end_timer = time.time()
@@ -466,16 +442,6 @@ async def handle_media_stream(websocket: WebSocket, restaurant_id: int,
                         # our end twilio call function
                         if response['item']['name'] == 'end_twilio_call':
                             await end_twilio_call(call_sid)
-
-                            # await decrement_live_calls(restaurant_id)
-                            # end_timer = time.time()
-                            # order_info = await process_transcript_and_send(
-                            #     transcript, end_timer - start_timer, restaurant_id, menu_content, client_number, call_sid, forward
-                            # )
-
-                            # twilio_number = get_twilio_number_by_restaurant_id(restaurant_id)
-                            # client_message = await format_client_message(order_info, twilio_number)
-                            # await send_sms_from_twilio(client_number, twilio_number, client_message)
 
                             if openai_ws.open:
                                 await openai_ws.close()
