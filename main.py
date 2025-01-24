@@ -179,7 +179,7 @@ async def handle_incoming_call(request: Request):
             gather.say(f"Welcome to {restaurant_name}. For English, please press 2.", voice="alice", language="en-CA")
             response.append(gather)
             response.redirect(INCOMING_CALL_ENDPOINT)  # Redirect if no input is received
-            return HTMLResponse(content=str(response), media_type="application/xml")
+            return HTMLResponse(content=str(response), media_type="application/xml") 
 
         # Process language selection
         if digits == "1":
