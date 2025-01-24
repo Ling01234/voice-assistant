@@ -169,7 +169,7 @@ async def handle_incoming_call(request: Request):
             response = VoiceResponse()
             gather = response.gather(
                 num_digits=1,
-                action="/incoming-call",  # Callback URL to handle selection
+                action=INCOMING_CALL_ENDPOINT,  # Callback URL to handle selection
                 method="POST"
             )
             # French part with a French voice
@@ -178,7 +178,7 @@ async def handle_incoming_call(request: Request):
             # English part with an English voice
             gather.say(f"Welcome to {restaurant_name}. For English, please press 2.", voice="alice", language="en-CA")
             response.append(gather)
-            response.redirect("/incoming-call")  # Redirect if no input is received
+            response.redirect(INCOMING_CALL_ENDPOINT)  # Redirect if no input is received
             return HTMLResponse(content=str(response), media_type="application/xml")
 
         # Process language selection
